@@ -10,11 +10,14 @@ import { spawnInterval, zombiesPerSpawner } from '../game/data';
 import { LAYOUTS, LevelLayout } from '../game/levels';
 import { PlayState, Screens } from '../game/play';
 import { BarricadeStore } from '../game/props';
+import type { Stats } from '../game/save';
+import type { BotFriend } from '../game/bots';
 import { Zombie } from '../game/zombie';
 import { RESOURCES, describe } from './items';
 import { storyArmoury } from './armoury';
+import { MAX_GUARDS, Survivor, partnerStats } from './group';
 import { Darkness, Light } from './lighting';
-import { Fog, Keyhole, OpenDoorways, Prompt, Toasts } from './overlays';
+import { Fog, Keyhole, NameTags, OpenDoorways, Prompt, Toasts } from './overlays';
 import { CORNER_SHOP, DoorDef, PropDef, SiteDef } from './sites';
 import { Sky, nightSkyFor } from './sky';
 import { BaseState, baseFor, count, give, has, newStory, persistStory, story } from './storySave';
@@ -63,6 +66,17 @@ export class StoryState extends PlayState {
     this.armoury = storyArmoury;
   }
 
+  /** Who is standing guard in each partner slot this day. */
+  private guards: (Survivor | null)[] = [];
+
+  protected partners(st: Stats) {
+    const g = story.group.filter((s) => s.job === 'guard').slice(0, MAX_GUARDS);
+    // Keep a kind-1 guard in slot 1 and a kind-2 guard in slot 2 where possible.
+    g.sort((a, b) => a.kind - b.kind);
+    this.guards = [g[0] ?? null, g[1] ?? null];
+    return this.guards.map((s) => (s ? { kind: s.kind, st: partnerStats(s, st) } : null));
+  }
+
   /** Night N uses Classic wave N's size and spawn rate. */
   protected waveNumber() {
     return story.day;
@@ -86,6 +100,11 @@ export class StoryState extends PlayState {
   create() {
     this.base = baseFor(this.site);
     super.create();
+    // Guards carry their injuries; zombies can now reach them.
+    this.slots().forEach(([f, s]) => {
+      f.health = s.hp;
+      this.world.targets.push(f);
+    });
     this.add(this.toasts);
     this.add(this.keyhole);
     this.reveal();
@@ -101,6 +120,27 @@ export class StoryState extends PlayState {
       }
     }
     persistStory();
+  }
+
+  private slots(): [BotFriend, Survivor][] {
+    const out: [BotFriend, Survivor][] = [];
+    if (this.guards[0]) out.push([this.friend1, this.guards[0]]);
+    if (this.guards[1]) out.push([this.friend2, this.guards[1]]);
+    return out;
+  }
+
+  /** Copy guards' health back to the group; a guard who fell is gone for good. */
+  private syncGuards() {
+    for (const [f, s] of this.slots()) {
+      if (!story.group.includes(s)) continue;
+      s.hp = Math.max(0, Math.round(f.health));
+      if (f.dead || s.hp <= 0) {
+        story.group = story.group.filter((x) => x !== s);
+        story.fallen.push(s.name);
+        this.toasts.push(`${s.name} is dead.`, 6);
+        persistStory();
+      }
+    }
   }
 
   // --- Day and night -------------------------------------------------------------------------
@@ -238,6 +278,7 @@ export class StoryState extends PlayState {
     this.add(new OpenDoorways(doors));
     this.add(new Fog(this.site.floors, (id) => this.base.revealed.includes(id)));
     this.add(new Darkness(() => this.darkness(), () => this.lights()));
+    this.add(new NameTags(() => this.slots().filter(([f]) => !f.dead).map(([f, s]) => ({ x: f.x + 8, y: f.y - 14, text: `${s.name} ${Math.max(0, Math.round(f.health))}` }))));
     this.add(this.prompt);
   }
 
@@ -433,6 +474,7 @@ export class StoryState extends PlayState {
       this.reveal();
       if (!this.fading) this.updateTime();
       this.updateFlashlight();
+      this.syncGuards();
     }
     super.update();
   }

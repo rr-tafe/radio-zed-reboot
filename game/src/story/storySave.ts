@@ -2,6 +2,7 @@
 
 import type { ItemId, Loot } from './items';
 import type { DoorKind, SiteDef } from './sites';
+import { Survivor, startingGroup } from './group';
 import { DAY_START, Phase } from './time';
 
 const KEY = 'radiozed.story.v1';
@@ -29,6 +30,10 @@ export interface StorySave {
   base: BaseState | null;
   /** [left, right], as in the original. */
   barricades: [BarricadeState, BarricadeState];
+  /** Friends (not including the player). */
+  group: Survivor[];
+  /** Fallen friends, for the record. */
+  fallen: string[];
 }
 
 function fresh(): StorySave {
@@ -42,6 +47,8 @@ function fresh(): StorySave {
     items: { batteries: 1 },
     base: null,
     barricades: [{ hp: 100, max: 100, lvl: 0 }, { hp: 100, max: 100, lvl: 0 }],
+    group: startingGroup(),
+    fallen: [],
   };
 }
 

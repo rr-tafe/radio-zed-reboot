@@ -132,7 +132,7 @@ export class Zombie extends Sprite {
             if (this.attack) {
               this.attack = false;
               this.timer = 1;
-              if (t === player) {
+              if (t === player || (t as { isPerson?: boolean }).isPerson) {
                 t.hurt(8);
                 this.w.gibs.at(t);
                 this.w.gibs.start(4, 40);

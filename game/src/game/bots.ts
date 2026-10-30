@@ -30,6 +30,8 @@ export class BotArm extends Sprite {
 }
 
 export class BotFriend extends Sprite {
+  /** Zombies hit people for 8 (barricades take 1). */
+  readonly isPerson = true;
   thisDef: number;
   private shiftX1: number;
   private shiftX2: number;
@@ -81,7 +83,7 @@ export class BotFriend extends Sprite {
   }
 
   shoot(tx: number, ty: number) {
-    if (!this.holderReload || this.attackDelay > 0) return;
+    if (this.dead || !this.holderReload || this.attackDelay > 0) return;
     this.arm.ddx = tx;
     this.arm.ddy = ty;
     this.attackDelay = this.attackDelayMax;
@@ -100,7 +102,24 @@ export class BotFriend extends Sprite {
     this.curBullet = (this.curBullet + 1) % this.bullets.length;
   }
 
+  /** The original's partners could never be hurt; in story mode they can die. */
+  kill() {
+    if (this.dead) return;
+    this.dead = true;
+    this.health = 0;
+    this.arm.exists = false;
+    this.acceleration.x = 0;
+    this.velocity.x = 0;
+    this.angle = this.facing === LEFT ? 90 : 270;
+    this.offset.y = -15;
+    this.play('idle');
+  }
+
   update() {
+    if (this.dead) {
+      super.update();
+      return;
+    }
     const dx = Math.abs(this.x - this.thisDef);
     this.acceleration.x = 0;
     if (this.x < this.thisDef && dx > 5) {

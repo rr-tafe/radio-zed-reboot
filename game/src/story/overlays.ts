@@ -200,3 +200,19 @@ export class Prompt extends Overlay {
     }
   }
 }
+
+/** Name and health above each guard. */
+export class NameTags extends Overlay {
+  private label = new Text(0, 0, 80, '').setFormat(8, TEXT_COLOR, 'center', TEXT_SHADOW);
+  constructor(private tags: () => { x: number; y: number; text: string }[]) {
+    super();
+  }
+  draw(ctx: CanvasRenderingContext2D) {
+    for (const t of this.tags()) {
+      this.label.text = t.text;
+      this.label.x = t.x - 40;
+      this.label.y = t.y;
+      this.label.draw(ctx);
+    }
+  }
+}

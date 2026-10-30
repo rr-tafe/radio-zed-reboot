@@ -11,6 +11,7 @@ import { Bullet } from './bullet';
 import { FINAL_WAVE, TEXT_COLOR, TEXT_SHADOW, spawnInterval, zombiesPerSpawner } from './data';
 import { LevelLayout, layoutForWave } from './levels';
 import { Armoury, Player, PlayerArm, classicArmoury } from './player';
+import type { Stats } from './save';
 import { Barricade, BarricadeStore, Block, Cursor, Radio, Zone, classicBarricades } from './props';
 import { persist, save, stats } from './save';
 import { Spawner, World, Zombie } from './zombie';
@@ -84,6 +85,10 @@ export class PlayState extends State {
   protected waveNumber(): number {
     return save.lvl;
   }
+  /** The two partner slots: which kind (1 = Willson's AK, 2 = Summer's SSG) and stats; null = empty. */
+  protected partners(st: Stats): ({ kind: 1 | 2; st: Stats } | null)[] {
+    return [{ kind: 1, st }, { kind: 2, st }];
+  }
   /** Which weapons the player has and where their ammo comes from. */
   protected armoury: Armoury = classicArmoury;
   /** Where barricade levels and health are stored. */
@@ -134,10 +139,14 @@ export class PlayState extends State {
     for (let i = 0; i < 100; i++) this.bullets.add(new Bullet());
     const bulletList = this.bullets.members;
 
-    const arm1 = new BotArm(1);
-    const arm2 = new BotArm(2);
-    this.friend1 = new BotFriend(496, L.bots.y1, bulletList, arm1, 1, st, ...(L.bots.defs1 ?? [393, 666]) as [number, number]);
-    this.friend2 = new BotFriend(496, L.bots.y2, bulletList, arm2, 2, st, ...(L.bots.defs2 ?? [393, 666]) as [number, number]);
+    const [p1, p2] = this.partners(st);
+    const arm1 = new BotArm(p1?.kind ?? 1);
+    const arm2 = new BotArm(p2?.kind ?? 2);
+    this.friend1 = new BotFriend(496, L.bots.y1, bulletList, arm1, p1?.kind ?? 1, p1?.st ?? st, ...(L.bots.defs1 ?? [393, 666]) as [number, number]);
+    this.friend2 = new BotFriend(496, L.bots.y2, bulletList, arm2, p2?.kind ?? 2, p2?.st ?? st, ...(L.bots.defs2 ?? [393, 666]) as [number, number]);
+    // An empty slot keeps its object (the rest of PlayState expects two) but takes no part.
+    if (!p1) this.friend1.exists = arm1.exists = false;
+    if (!p2) this.friend2.exists = arm2.exists = false;
     this.friend1.thisDef = this.friend1.leftDef;
     this.friend2.thisDef = this.friend2.rightDef;
 
@@ -322,11 +331,11 @@ export class PlayState extends State {
     for (const m of [one, two, left, right]) {
       for (const z of this.zombies.members) {
         if (!z.exists || z.health <= 0 || !m.overlaps(z)) continue;
-        if (f1.acceleration.x === 0 && (m === one || (f1.thisDef === f1.leftDef && m === left) || (f1.thisDef === f1.rightDef && m === right))) {
+        if (f1.exists && f1.acceleration.x === 0 && (m === one || (f1.thisDef === f1.leftDef && m === left) || (f1.thisDef === f1.rightDef && m === right))) {
           f1.facing = f1.arm.facing;
           f1.shoot(z.x, z.y);
         }
-        if (f2.acceleration.x === 0 && (m === two || (f2.thisDef === f2.leftDef && m === left) || (f2.thisDef === f2.rightDef && m === right))) {
+        if (f2.exists && f2.acceleration.x === 0 && (m === two || (f2.thisDef === f2.leftDef && m === left) || (f2.thisDef === f2.rightDef && m === right))) {
           f2.facing = f2.arm.facing;
           f2.shoot(z.x, z.y);
         }
