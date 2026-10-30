@@ -49,5 +49,5 @@ Not yet checked against the original by hand: a full 60-wave run, the win screen
 levels, fade timing.
 
 Story mode (prototype, `src/story/`, design in `../docs/STORY_MODE.md`): explore the
-Corner Shop by day. S opens doors and searches, holding S peeks through keyholes or pries
-boards. No day/night cycle yet.
+Corner Shop by day, defend it at night. S opens doors and searches; holding S peeks through
+keyholes or pries boards; S at the radio waits for nightfall; L toggles the flashlight.

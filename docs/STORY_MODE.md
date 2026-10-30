@@ -175,9 +175,21 @@ Steps 2–5 can be prototyped on the original art before any new art exists.
   Fogged floors; four back rooms (storeroom with a zombie, office locked behind a key from
   the bar, washroom with no keyhole and two zombies, boarded roof hut); five searchable
   props; keyhole peeking; resource HUD; separate save; permadeath.
-  * Tuning note: a zombie that comes out of a door lands on the player, and with the Glock
-    (10 damage) against 8 damage per second that fight is usually lost. Next step should give
-    emerging zombies a short stumble delay, or push the player back.
+  * Zombies that come out of a room now stumble for 1.2 s (+0.4 s each extra) before they
+    can attack, since a zombie landing on the player with only the Glock was a near-certain loss.
+* **Step 3 done** (branch `story-mode`): day/night and lighting.
+  * Clock 06:00–18:00 over about 4 real minutes; at the radio, S waits for nightfall (fast-forward).
+  * Dusk (15 s) and dawn (8 s) transitions; painted day sky with drifting clouds; the
+    original's night skies at night (moon sky on bright nights, moonless skies otherwise).
+  * 8-night moon cycle (random start per run). Darkness: full 0.15 → bright 0.45 → half 0.62
+    → thin 0.78 → none 0.9. Darker nights bring up to 36% more zombies.
+  * Night N sends Classic wave N's size and spawn rate; two wanderers per side by day.
+  * Lights: player pool, partners, radio, muzzle flashes, tracers, flashlight cone (L; one
+    battery per 90 s; new runs start with one battery). Keyholes are too dark to see through
+    on black nights without the flashlight.
+  * Story barricades are stored in the story save; the radio resets each night.
+  * Not yet: lamps or fires you can place, barricade repairs in story mode (no shop yet),
+    food upkeep at dawn. Those belong to step 4 (group and resources).
 
 ## Open questions
 
