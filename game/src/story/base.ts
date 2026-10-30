@@ -21,11 +21,14 @@ import { MAX_GUARDS, Survivor, partnerStats } from './group';
 import { Darkness, Light } from './lighting';
 import { DoorDecals, Fog, Keyhole, NameTags, OpenDoorways, Prompt, Toasts } from './overlays';
 import { currentNode, siteFor } from './city';
+import { party } from './scavenge';
 import { CityMapState } from './citymap';
 import { DOOR_DECAL } from './templates';
 import { DoorDef, PropDef, SiteDef } from './sites';
 import { Sky, nightSkyFor } from './sky';
-import { BaseState, baseFor, count, give, has, newStory, persistStory, story } from './storySave';
+import { BaseState, baseFor, count, give, has, newBase, newStory, persistStory, story } from './storySave';
+import type { CityNode } from './city';
+import { Radio } from '../game/props';
 import {
   DAWN_SECONDS, DAY_RATE, DAY_START, DUSK_SECONDS, DUSK_START, MOON_DARKNESS, MOON_LABEL, Moon, NIGHT_START, WAIT_RATE,
   clockText, moonFor,
@@ -57,7 +60,12 @@ const THREAT_QUIET_DAY = -8;
 const LEAVE_HOLD = 2;
 /** Seconds into a siege before the radio finds a new bearing and the way out opens. */
 const SIEGE_HOLD = 35;
-/** The way out during a siege: the street past the left barricade. */
+/** A scavenging run starts at 08:00; the place floods at dusk. */
+const RUN_START = 8 * 60;
+const RUN_WARNING = 17 * 60;
+/** Barricades at a scavenging site are long broken. */
+const brokenBarricades: BarricadeStore = { lvl: () => 0, max: () => 100, get: () => 0, set: () => {} };
+/** The way out during a siege (and of a scavenging run): the street past the left barricade. */
 const EXIT: [number, number, number, number] = [170, 360, 50, 72];
 
 export class StoryState extends PlayState {
@@ -80,12 +88,19 @@ export class StoryState extends PlayState {
   private flashlight = false;
   private batteryUse = 0;
 
-  constructor(screens: Screens) {
+  /** A scavenging run the player leads, at `run`. No radio to defend; head back before dusk. */
+  private run: CityNode | null;
+  private flooded = false;
+  /** Zombies on a run hunt the player, so they follow this stand-in for the radio. */
+  private bait: Radio | null = null;
+
+  constructor(screens: Screens, run: CityNode | null = null) {
     super(screens);
-    this.site = siteFor(currentNode());
+    this.run = run;
+    this.site = siteFor(run ?? currentNode());
     this.spawnsWave = false;
     this.playerStart = this.site.start;
-    this.barricades = storyBarricades;
+    this.barricades = run ? brokenBarricades : storyBarricades;
     this.armoury = storyArmoury;
   }
 
@@ -100,7 +115,8 @@ export class StoryState extends PlayState {
   }
 
   protected partners(st: Stats) {
-    const g = story.group.filter((s) => s.job === 'guard').slice(0, MAX_GUARDS);
+    // On a run the scavengers come along; at home the guards stand watch.
+    const g = (this.run ? party() : story.group.filter((s) => s.job === 'guard')).slice(0, MAX_GUARDS);
     // Keep a kind-1 guard in slot 1 and a kind-2 guard in slot 2 where possible.
     g.sort((a, b) => a.kind - b.kind);
     this.guards = [g[0] ?? null, g[1] ?? null];
@@ -128,8 +144,20 @@ export class StoryState extends PlayState {
   }
 
   create() {
-    this.base = baseFor(this.site);
+    if (this.run) {
+      // A run spends the day away from home; nothing about this building is kept.
+      this.base = newBase(this.site);
+      story.phase = 'day';
+      story.clock = RUN_START;
+    } else this.base = baseFor(this.site);
     super.create();
+    if (this.run) {
+      this.radio.visible = false;
+      this.radio.tag.hide();
+      this.bait = new Radio(-500, -500);
+      this.bait.health = 0;
+      this.world.radio = this.bait;
+    }
     // Guards carry their injuries; zombies can now reach them.
     this.slots().forEach(([f, s]) => {
       f.health = s.hp;
@@ -145,7 +173,10 @@ export class StoryState extends PlayState {
       else {
         if (story.phase === 'dusk') story.phase = 'day';
         this.armWanderers();
-        this.toasts.push(`Day ${story.day}. ${this.site.name}. ${clockText(story.clock)}.`);
+        if (this.run) {
+          this.toasts.push(`Scavenging the ${this.site.name}. Grab what you can.`, 5);
+          this.toasts.push('Head back by the street on the left (S) before dark.', 6);
+        } else this.toasts.push(`Day ${story.day}. ${this.site.name}. ${clockText(story.clock)}.`);
         if (story.day === 1) this.toasts.push('S: open doors and search.  Hold S: peek through a keyhole.');
         const threat = this.base.threat ?? 0;
         if (threat >= 100) this.toasts.push('Threat is full: tonight this place will be overrun. Hold S at the radio to move on.', 7);
@@ -179,6 +210,7 @@ export class StoryState extends PlayState {
   // --- Day and night -------------------------------------------------------------------------
 
   private addThreat(n: number) {
+    if (this.run) return;
     this.base.threat = Math.max(0, Math.min(100, (this.base.threat ?? 0) + n));
   }
 
@@ -194,7 +226,45 @@ export class StoryState extends PlayState {
 
   /** A few slow wanderers by day. */
   private armWanderers() {
-    for (const s of this.spawners) s.arm(2, 45, 40);
+    // Away from home there are more of them about.
+    const danger = this.run?.danger ?? 0;
+    for (const s of this.spawners) s.arm(this.run ? 3 + danger * 2 : 2, this.run ? 25 : 45, this.run ? 15 : 40);
+  }
+
+  /** Run clock: warning at 17:00, then at dusk the place floods. */
+  private updateRun() {
+    const before = story.clock;
+    story.clock += G.elapsed * DAY_RATE;
+    if (before < RUN_WARNING && story.clock >= RUN_WARNING) this.toasts.push('An hour of light left. Time to head back.', 5);
+    if (!this.flooded && story.clock >= DUSK_START) {
+      this.flooded = true;
+      story.phase = 'dusk';
+      this.phaseTime = 0;
+      for (const s of this.spawners) s.arm(zombiesPerSpawner(this.waveNumber()) * 2, 1, 2);
+      this.toasts.push("It's getting dark and they're pouring in. Get out!", 6);
+    }
+    if (this.flooded) this.phaseTime = Math.min(DUSK_SECONDS, this.phaseTime + G.elapsed);
+    if (this.bait) {
+      this.bait.x = this.player.x;
+      this.bait.y = this.player.y - 32;
+    }
+  }
+
+  private inExit() {
+    const p = this.player;
+    const [x, y, w, h] = EXIT;
+    return !p.dead && p.x < x + w && p.x + p.width > x && p.y < y + h && p.y + p.height > y;
+  }
+
+  /** Back home at dusk with whatever was found. */
+  private endRun() {
+    this.syncGuards();
+    for (const s of party()) s.job = 'rest';
+    story.phase = 'day';
+    story.clock = DUSK_START - 1;
+    persistStory();
+    const screens = this.screens;
+    switchState(() => new StoryState(screens));
   }
 
   private startNight() {
@@ -303,7 +373,7 @@ export class StoryState extends PlayState {
     }
     for (const f of [this.friend1, this.friend2]) out.push({ x: f.x + 8, y: f.y + 16, radius: 20, intensity: 0.45 });
     out.push({ x: this.radio.x + 18, y: this.radio.y + 20, radius: 26, intensity: 0.55 });
-    if (this.exitOpen) out.push({ x: EXIT[0] + 20, y: 400, radius: 70, intensity: 0.8 });
+    if (this.exitOpen || this.run) out.push({ x: EXIT[0] + 20, y: 400, radius: 70, intensity: 0.8 });
     // Street lamps built at the barricades light the approach.
     (this.base.lamps ?? []).forEach((lit, i) => {
       if (!lit) return;
@@ -339,6 +409,10 @@ export class StoryState extends PlayState {
   }
 
   private updateTime() {
+    if (this.run) {
+      this.updateRun();
+      return;
+    }
     const dt = G.elapsed;
     switch (story.phase) {
       case 'day': {
@@ -411,10 +485,14 @@ export class StoryState extends PlayState {
   }
 
   private nearRadio() {
-    return !this.player.dead && this.player.overlaps(this.radio);
+    return !this.run && !this.player.dead && this.player.overlaps(this.radio);
   }
 
   protected handleUse(): boolean {
+    if (this.run && this.inExit()) {
+      this.endRun();
+      return true;
+    }
     if (story.phase === 'day' && this.nearRadio()) {
       this.radioHold = 0;
       return true;
@@ -569,7 +647,8 @@ export class StoryState extends PlayState {
     this.prompt.y = p.y;
     this.prompt.text = near && !this.keyhole.view ? this.promptFor(near)
       : story.phase === 'day' && this.nearRadio() ? (this.waiting ? 'Waiting... (S: stop)' : 'S: wait for night  Hold S: move on')
-      : this.exitOpen && this.player.x < 330 ? 'Keep going!' : '';
+      : this.exitOpen && this.player.x < 330 ? 'Keep going!'
+      : this.run && this.inExit() ? 'S: head back' : '';
     const boarded = h && h.target.kind === 'door' && this.doorState(h.target.def).state === 'boarded' && !h.acted;
     this.prompt.progress = this.action ? this.action.time / SEARCH_TIME : boarded ? h!.time / PRY_TIME
       : this.radioHold !== null && this.radioHold > PEEK_DELAY ? this.radioHold / LEAVE_HOLD : -1;
@@ -628,7 +707,8 @@ export class StoryState extends PlayState {
       this.ammoText.text = `${mag} / ${reserve}\n${hp}`;
     }
     const res = RESOURCES.map((r) => `${r.label} ${count(r.id)}`).join('   ');
-    const when = story.phase === 'night' ? `Night ${story.day}, ${MOON_LABEL[this.moon]}`
+    const when = this.run ? `Scavenging  ${clockText(story.clock)}`
+      : story.phase === 'night' ? `Night ${story.day}, ${MOON_LABEL[this.moon]}`
       : story.phase === 'dawn' ? `Dawn after night ${story.day}`
       : `Day ${story.day}  ${clockText(story.clock)}`;
     this.hud.text = `${when}   ${this.site.name}   Threat ${Math.floor(this.base.threat ?? 0)}%      ${res}`;
@@ -647,3 +727,5 @@ export class StoryState extends PlayState {
     if (this.fading) this.black.alpha = Math.min(1, this.black.alpha + G.elapsed);
   }
 }
+
+CampState.makeRun = (screens, target) => new StoryState(screens, target);

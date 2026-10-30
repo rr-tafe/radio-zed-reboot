@@ -7,6 +7,7 @@ import { G, Sprite, State, Text, switchState } from '../engine/core';
 import { keys, mouse } from '../engine/input';
 import { play } from '../engine/sound';
 import { BARRICADE_MAX, TEXT_COLOR, TEXT_SHADOW, WEAPONS } from '../game/data';
+import type { CityNode } from './city';
 import type { Screens } from '../game/play';
 import { storyArmoury } from './armoury';
 import { JOBS, JOB_LABEL, Job, MAX_GUARDS } from './group';
@@ -63,6 +64,9 @@ class TextButton extends Text {
 }
 
 export class CampState extends State {
+  /** Set by base.ts (which imports this module) to start a scavenging run the player leads. */
+  static makeRun: (screens: Screens, target: CityNode) => State;
+
   constructor(private screens: Screens, private makeDay: () => State, private notice = '') {
     super();
   }
@@ -125,7 +129,7 @@ export class CampState extends State {
       JOBS.forEach((job: Job, k) => {
         const selected = s.job === job;
         const allowed = job !== 'guard' || selected || guards < MAX_GUARDS;
-        const xs = [200, 231, 257, 288];
+        const xs = [195, 228, 255, 286];
         this.add(new TextButton(xs[k], y, JOB_LABEL[job], allowed && !selected, selected, () => {
           s.job = job;
           this.reopen();
@@ -142,8 +146,8 @@ export class CampState extends State {
     const targets = scavengeTargets();
     const target = scavengeTarget();
     const going = party();
-    if (!going.length || !target) {
-      this.add(label(120, 384, going.length ? 'Nowhere to scavenge from here.' : 'Set a job to Scav to send a party out.', 8, DIM));
+    if (!target) {
+      this.add(label(120, 384, 'Nowhere to scavenge from here.', 8, DIM));
       return;
     }
     story.scavengeTarget = target.id;
@@ -155,7 +159,13 @@ export class CampState extends State {
     this.add(label(120, 376, `Scavenge: ${target.name}${target.danger ? ' ' + '!'.repeat(target.danger) : ''}`));
     this.add(new TextButton(120, 388, '< prev', targets.length > 1, false, cycle(-1)));
     this.add(new TextButton(160, 388, 'next >', targets.length > 1, false, cycle(1)));
-    this.add(label(205, 388, `${going.length} going, back at dawn`, 8, DIM));
+    this.add(new TextButton(205, 388, 'Lead the run', true, false, () => {
+      play('Shop_SndMenuClick');
+      persistStory();
+      switchState(() => CampState.makeRun(this.screens, target));
+    }));
+    const who = going.length ? `${going.map((s) => s.name).join(', ')} ${going.length > 1 ? 'go' : 'goes'}; back at dawn.` : 'Set a job to Scav to send a party.';
+    this.add(label(120, 399, who, 8, DIM));
   }
 
   private armoury() {

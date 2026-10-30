@@ -114,19 +114,22 @@ export function hasStory() {
 
 /** State for a site, created on first arrival. */
 export function baseFor(site: SiteDef): BaseState {
-  if (!story.base || story.base.site !== site.id) {
-    story.base = {
-      site: site.id,
-      revealed: [],
-      doors: Object.fromEntries(site.doors.map((d) => [d.id, { state: d.kind as DoorState, zombies: d.zombies, searched: false }])),
-      searched: [],
-      lamps: [false, false],
-      threat: 0,
-      nights: 0,
-      dayShots: 0,
-    };
-  }
+  if (!story.base || story.base.site !== site.id) story.base = newBase(site);
   return story.base;
+}
+
+/** Fresh, unexplored state for a site (used directly for scavenging runs, which aren't saved). */
+export function newBase(site: SiteDef): BaseState {
+  return {
+    site: site.id,
+    revealed: [],
+    doors: Object.fromEntries(site.doors.map((d) => [d.id, { state: d.kind as DoorState, zombies: d.zombies, searched: false }])),
+    searched: [],
+    lamps: [false, false],
+    threat: 0,
+    nights: 0,
+    dayShots: 0,
+  };
 }
 
 export function give(l: Loot) {
