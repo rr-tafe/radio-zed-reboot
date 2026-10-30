@@ -1,0 +1,12 @@
+.DS_Store
+node_modules/
+game/dist/
+
+# Third-party decompiler download (JPEXS FFDec 26.4.0, from its GitHub releases).
+tools/ffdec/
+tools/ffdec.zip
+
+# Generated from the SWFs by tools/ (extract_assets.py, FFDec); thousands of files, some
+# with control characters in their names. The useful outputs are kept in
+# source_recovered/ and game/src/assets/.
+extracted/

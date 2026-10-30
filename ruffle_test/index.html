@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Radio Zed – Ruffle test</title>
+<style>
+  body { background:#111; color:#ccc; font:14px system-ui, sans-serif; margin:0; padding:16px; }
+  nav a { color:#8cf; margin-right:16px; }
+  #player { width:640px; height:480px; margin-top:12px; }
+</style>
+<script>
+  window.RufflePlayer = window.RufflePlayer || {};
+  window.RufflePlayer.config = { autoplay: "on", unmuteOverlay: "hidden", letterbox: "on", logLevel: "warn" };
+</script>
+<script src="https://unpkg.com/@ruffle-rs/ruffle@0.7.1/ruffle.js"></script>
+</head>
+<body>
+<nav>
+  <a href="?swf=radiozed.swf">17 Sep build</a>
+  <a href="?swf=547667_radio_zed13.swf">9 Sep build</a>
+  <a href="?swf=radio_zed.swf">7 Sep build</a>
+  <span id="cur"></span>
+</nav>
+<div id="player"></div>
+<script>
+  const swf = new URLSearchParams(location.search).get("swf") || "547667_radio_zed13.swf";
+  document.getElementById("cur").textContent = "Loaded: " + swf;
+  const player = window.RufflePlayer.newest().createPlayer();
+  player.style.width = "640px"; player.style.height = "480px";
+  document.getElementById("player").appendChild(player);
+  player.ruffle().load({ url: swf, allowScriptAccess: false });
+</script>
+</body>
+</html>
