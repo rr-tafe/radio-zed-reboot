@@ -51,3 +51,5 @@ levels, fade timing.
 Story mode (prototype, `src/story/`, design in `../docs/STORY_MODE.md`): explore the
 Corner Shop by day, defend it at night. S opens doors and searches; holding S peeks through
 keyholes or pries boards; S at the radio waits for nightfall; L toggles the flashlight.
+Each dawn opens the camp: set jobs, check weapons and ammo, repair or reinforce barricades,
+put up street lamps.

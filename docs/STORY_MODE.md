@@ -188,8 +188,19 @@ Steps 2–5 can be prototyped on the original art before any new art exists.
     battery per 90 s; new runs start with one battery). Keyholes are too dark to see through
     on black nights without the flashlight.
   * Story barricades are stored in the story save; the radio resets each night.
-  * Not yet: lamps or fires you can place, barricade repairs in story mode (no shop yet),
-    food upkeep at dawn. Those belong to step 4 (group and resources).
+* **Step 4 done** (branch `story-mode`): group and resources.
+  * Armoury: weapons are found as loot (Uzi in the storeroom, Desert Eagle in the office) and
+    reload from calibre reserves (9mm, .50 AE, 5.56, 7.62). **Decision:** the Glock never runs
+    dry, so a run can't end just because ammo did; partners also have unlimited ammo for now.
+  * Group: Willson and Summer to start (up to 4 friends). Jobs: guard (up to two, filling the
+    original's partner slots), rest, build. Guards can be hurt (8 per hit) and die for good.
+  * Dawn upkeep: 1 food each (hungry = no healing, worse aim); rest heals 40, otherwise 10;
+    medicine on anyone below half; builders spend 2 materials on the weaker barricade.
+  * Camp screen at dawn on the original shop frame: report, jobs, armoury, fortify (repair,
+    reinforce with the original barricade upgrade art, street lamps).
+  * Story mode uses base stats; Classic's skill purchases don't carry over.
+  * Not yet: new survivors to recruit, a trader for cash, ammo for partners, a lamp sprite,
+    leader health carried between days, opening the camp mid-day.
 
 ## Open questions
 
