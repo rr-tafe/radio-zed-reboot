@@ -16,6 +16,12 @@ export interface BaseState {
   searched: string[];
   /** Street lamps built at [left, right] barricades. */
   lamps: [boolean, boolean];
+  /** 0–100. At 100 the next night is a siege that can't be held. */
+  threat: number;
+  /** Nights survived at this base. */
+  nights: number;
+  /** Shots the player fired today (noise). */
+  dayShots: number;
 }
 
 export interface BarricadeState { hp: number; max: number; lvl: number }
@@ -98,6 +104,9 @@ export function baseFor(site: SiteDef): BaseState {
       doors: Object.fromEntries(site.doors.map((d) => [d.id, { state: d.kind as DoorState, zombies: d.zombies, searched: false }])),
       searched: [],
       lamps: [false, false],
+      threat: 0,
+      nights: 0,
+      dayShots: 0,
     };
   }
   return story.base;

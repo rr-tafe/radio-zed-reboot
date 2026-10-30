@@ -44,6 +44,12 @@ const PRY_TIME = 3;
 const SEARCH_TIME = 1.2;
 /** Seconds of flashlight use per battery. */
 const BATTERY_SECONDS = 90;
+/** Threat: per night survived here (+ more each night), per shot fired by day, prying boards, a quiet day. */
+const THREAT_NIGHT = 18;
+const THREAT_NIGHT_GROWTH = 4;
+const THREAT_PER_SHOT = 0.15;
+const THREAT_PRY = 3;
+const THREAT_QUIET_DAY = -8;
 
 export class StoryState extends PlayState {
   private site: SiteDef = CORNER_SHOP;
@@ -57,6 +63,7 @@ export class StoryState extends PlayState {
   private phaseTime = 0;
   /** Fast-forwarding to dusk after using the radio. */
   private waiting = false;
+  private lastShots = 0;
   private flashlight = false;
   private batteryUse = 0;
 
@@ -153,6 +160,20 @@ export class StoryState extends PlayState {
   }
 
   // --- Day and night -------------------------------------------------------------------------
+
+  private addThreat(n: number) {
+    this.base.threat = Math.max(0, Math.min(100, (this.base.threat ?? 0) + n));
+  }
+
+  /** Gunfire by day draws attention. */
+  private updateNoise() {
+    const shots = this.player.allBullet - this.lastShots;
+    this.lastShots = this.player.allBullet;
+    if (shots > 0 && story.phase === 'day') {
+      this.base.dayShots = (this.base.dayShots ?? 0) + shots;
+      this.addThreat(shots * THREAT_PER_SHOT);
+    }
+  }
 
   /** A few slow wanderers by day. */
   private armWanderers() {
@@ -263,6 +284,10 @@ export class StoryState extends PlayState {
           this.phaseTime = 0;
           this.waiting = false;
           this.toasts.push('Dusk. Get ready.');
+          if (!this.base.dayShots) {
+            this.addThreat(THREAT_QUIET_DAY);
+            this.toasts.push('A quiet day. Fewer of them know you are here.');
+          }
           persistStory();
         }
         break;
@@ -280,6 +305,9 @@ export class StoryState extends PlayState {
           story.phase = 'dawn';
           this.phaseTime = 0;
           this.toasts.push(`Dawn. You made it through night ${story.day}.`, 5);
+          this.addThreat(THREAT_NIGHT + THREAT_NIGHT_GROWTH * (this.base.nights ?? 0));
+          this.base.nights = (this.base.nights ?? 0) + 1;
+          this.base.dayShots = 0;
           persistStory();
         }
         break;
@@ -433,6 +461,7 @@ export class StoryState extends PlayState {
           if (s.state === 'boarded') {
             if (h.time >= PRY_TIME) {
               h.acted = true;
+              this.addThreat(THREAT_PRY);
               this.toasts.push(`Pried the boards off the ${d.name.toLowerCase()}.`);
               this.openDoor(d);
             }
@@ -491,6 +520,7 @@ export class StoryState extends PlayState {
       this.reveal();
       if (!this.fading) this.updateTime();
       this.updateFlashlight();
+      this.updateNoise();
       this.syncGuards();
     }
     super.update();
@@ -509,7 +539,7 @@ export class StoryState extends PlayState {
     const when = story.phase === 'night' ? `Night ${story.day}, ${MOON_LABEL[this.moon]}`
       : story.phase === 'dawn' ? `Dawn after night ${story.day}`
       : `Day ${story.day}  ${clockText(story.clock)}`;
-    this.hud.text = `${when}   ${this.site.name}      ${res}`;
+    this.hud.text = `${when}   ${this.site.name}   Threat ${Math.floor(this.base.threat ?? 0)}%      ${res}`;
   }
 
   protected checkEnd() {
