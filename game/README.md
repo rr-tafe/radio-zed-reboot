@@ -54,4 +54,5 @@ keyholes or pries boards; S at the radio waits for nightfall; L toggles the flas
 Each dawn opens the camp: set jobs, check weapons and ammo, repair or reinforce barricades,
 put up street lamps. Threat builds the longer you stay and the more noise you make; when it
 fills, the night is a siege and you run for it. Hold S at the radio to move on early. The city
-map leads through generated buildings to the Radio Station.
+map leads through generated buildings to the Radio Station. Friends on the Scav job raid a nearby place
+overnight; "Lead the run" at camp lets you play that raid yourself.

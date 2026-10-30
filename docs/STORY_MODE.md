@@ -219,6 +219,17 @@ Steps 2–5 can be prototyped on the original art before any new art exists.
   * Radio Station: placeholder ending (days survived, who made it, who was lost); closes the run.
   * Only three location types exist until new art arrives (step 7): shop, apartments, tower. Gas
     station, police station, hospital and church need their own art kits.
+* **Step 6 done** (branch `story-mode`): scavenging.
+  * Off-screen: give friends the **Scav** job and pick a target at camp (any location within one
+    column, not the station). They're away for the day and night, so they can't guard. At dawn:
+    loot rolled from that kind of place (more for bigger, stronger parties), injury or death odds
+    that rise with danger and the night's darkness and fall with the party's strength, and a
+    chance of finding a survivor who joins (up to four friends, named from a pool).
+  * Playable: **Lead the run** at camp plays a daytime level at the target with the scavengers as
+    partners, no radio and broken barricades; zombies hunt the player. A warning at 17:00, the
+    place floods at dusk; S on the left street heads home, arriving at dusk with what was found.
+  * Not yet: a flooded run's dusk was not exercised in the browser; partner names for recruits
+    reuse Willson's and Summer's sprites until new art exists.
 
 ## Open questions
 
