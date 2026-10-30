@@ -11,7 +11,7 @@ import { Bullet } from './bullet';
 import { FINAL_WAVE, TEXT_COLOR, TEXT_SHADOW, spawnInterval, zombiesPerSpawner } from './data';
 import { LevelLayout, layoutForWave } from './levels';
 import { Player, PlayerArm } from './player';
-import { Barricade, Block, Cursor, Radio, Zone } from './props';
+import { Barricade, BarricadeStore, Block, Cursor, Radio, Zone, classicBarricades } from './props';
 import { persist, save, stats } from './save';
 import { Spawner, World, Zombie } from './zombie';
 import { checkAchievements } from './achievements';
@@ -80,6 +80,12 @@ export class PlayState extends State {
   }
   /** Where the player appears. */
   protected playerStart: [number, number] = [556, 315];
+  /** Wave size and spawn rate come from this wave number. */
+  protected waveNumber(): number {
+    return save.lvl;
+  }
+  /** Where barricade levels and health are stored. */
+  protected barricades: BarricadeStore = classicBarricades;
   /** Whether the street spawners send a wave. */
   protected spawnsWave = true;
   /** Add anything that draws over the actors but under the HUD (fog, room overlays). */
@@ -91,7 +97,7 @@ export class PlayState extends State {
 
   create() {
     const st = stats();
-    const wave = save.lvl;
+    const wave = this.waveNumber();
     const L: LevelLayout = this.layoutFor();
     this.tempLeft = save.leftBarricade;
     this.tempRight = save.rightBarricade;
@@ -138,8 +144,8 @@ export class PlayState extends State {
     this.weaponGui.moves = false;
     this.add(this.weaponGui);
 
-    this.left = new Barricade(L.barricades[0], 397, 0);
-    this.right = new Barricade(L.barricades[1], 397, 1);
+    this.left = new Barricade(L.barricades[0], 397, 0, this.barricades);
+    this.right = new Barricade(L.barricades[1], 397, 1, this.barricades);
     this.right.facing = 0;
     this.add(this.left);
     if (this.left.tag) { this.add(this.left.tag.icon); this.add(this.left.tag.label); }

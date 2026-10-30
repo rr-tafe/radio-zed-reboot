@@ -110,6 +110,8 @@ export class StoryDayState extends PlayState {
       const [x, y, w, h] = d.rect;
       for (let i = 0; i < s.zombies; i++) {
         const z = new Zombie(x + w / 2 - 7 + i * 6, y + h - 32, this.world);
+        // Stumbling out of the dark gives the player a moment to back off.
+        z.stun = 1.2 + i * 0.4;
         z.px = z.x;
         z.py = z.y;
         this.zombies.add(z);

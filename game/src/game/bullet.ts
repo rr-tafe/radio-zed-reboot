@@ -8,6 +8,8 @@ export class Bullet extends Sprite {
   /** 1 = fired by the player, 2 = fired by a partner bot. */
   bulletInitial = 0;
   damage = 0;
+  /** Seconds since fired (reboot: used to light muzzle flashes and tracers at night). */
+  age = 0;
 
   constructor() {
     super();
@@ -19,6 +21,7 @@ export class Bullet extends Sprite {
   }
 
   update() {
+    this.age += G.elapsed;
     if (this.visibleTimer > 0) this.visibleTimer -= G.elapsed;
     else this.visible = true;
     if (this.x < -10 || this.x > 2000 || this.y < -10 || this.y > 600) this.kill();
@@ -64,6 +67,7 @@ export class Bullet extends Sprite {
     const vx = Math.floor((ax / (ax + ay)) * speed);
     const vy = Math.floor((ay / (ax + ay)) * speed);
     this.reset(x1, y1 + 15);
+    this.age = 0;
     this.solid = true;
     this.velocity.x = ddx > 0 ? -vx : vx;
     this.velocity.y = ddy <= 0 ? vy : -vy;

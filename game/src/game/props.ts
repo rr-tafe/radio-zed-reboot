@@ -41,12 +41,30 @@ export class Radio extends Sprite {
   kill() {}
 }
 
+/** Where a barricade's level and health live (Classic save or story save). */
+export interface BarricadeStore {
+  lvl(side: 0 | 1): number;
+  max(side: 0 | 1): number;
+  get(side: 0 | 1): number;
+  set(side: 0 | 1, hp: number): void;
+}
+
+export const classicBarricades: BarricadeStore = {
+  lvl: (s) => (s === 0 ? save.leftBarricade_lvl : save.rightBarricade_lvl),
+  max: (s) => (s === 0 ? save.leftBarricade_Max : save.rightBarricade_Max),
+  get: (s) => (s === 0 ? save.leftBarricade : save.rightBarricade),
+  set: (s, hp) => {
+    if (s === 0) save.leftBarricade = hp;
+    else save.rightBarricade = hp;
+  },
+};
+
 export class Barricade extends Sprite {
   tag: HealthTag | null = null;
 
-  constructor(x: number, y: number, readonly side: 0 | 1) {
+  constructor(x: number, y: number, readonly side: 0 | 1, private store: BarricadeStore = classicBarricades) {
     super(x, y);
-    const lvl = side === 0 ? save.leftBarricade_lvl : save.rightBarricade_lvl;
+    const lvl = store.lvl(side);
     this.loadGraphic(`Barricade_ImgBarricade${lvl}`, true, true, 31, 35);
     this.addAnimation('100', [0]);
     this.addAnimation('80', [1]);
@@ -55,12 +73,12 @@ export class Barricade extends Sprite {
     this.addAnimation('0', [4]);
     this.moves = false;
     this.solid = false;
-    this.health = side === 0 ? save.leftBarricade : save.rightBarricade;
+    this.health = store.get(side);
     this.showDamage();
     if (this.health > 0) this.tag = new HealthTag(this.x + 6, this.y - 5, this.health);
   }
 
-  private get max() { return this.side === 0 ? save.leftBarricade_Max : save.rightBarricade_Max; }
+  private get max() { return this.store.max(this.side); }
 
   private showDamage() {
     const r = this.health / this.max;
@@ -75,8 +93,7 @@ export class Barricade extends Sprite {
     this.tag?.set(this.health);
     if (this.health <= 2) this.tag?.hide();
     this.health -= d;
-    if (this.side === 0) save.leftBarricade = this.health;
-    else save.rightBarricade = this.health;
+    this.store.set(this.side, this.health);
     if (this.health > 0) this.showDamage();
     else this.play('0');
   }

@@ -20,6 +20,8 @@ export interface World {
 
 export class Zombie extends Sprite {
   zombieDead = false;
+  /** Seconds before this zombie can move or attack (reboot: used for ones that come out of rooms). */
+  stun = 0;
   private timer = 1;
   private attack = true;
   private deadTime = 60;
@@ -40,6 +42,7 @@ export class Zombie extends Sprite {
     this.addAnimation('walk', Array.from({ length: 24 }, (_, i) => i), this.maxVelocity.x / 2);
     this.addAnimation('attack', [24, 25, 26, 27], 5);
     this.addAnimation('stop', [28]);
+    this.addAnimation('idle', [0]);
     const g = Math.floor(Math.random() * 50);
     if (g === 1) play('zombie1_SndGrow1');
     else if (g === 2) play('zombie1_SndGrow2');
@@ -79,7 +82,11 @@ export class Zombie extends Sprite {
 
   update() {
     const { player, radio, doorsUp, targets } = this.w;
-    if (!this.zombieDead) {
+    if (!this.zombieDead && this.stun > 0) {
+      this.stun -= G.elapsed;
+      this.acceleration.x = 0;
+      this.play('idle');
+    } else if (!this.zombieDead) {
       if (this.timer > 0 && !this.attack) this.timer -= G.elapsed;
       else this.attack = true;
 
@@ -157,7 +164,7 @@ export class Spawner extends Sprite {
   private timer = Math.random() * 20;
   private spawned = 0;
 
-  constructor(x: number, y: number, private zombies: Group<Zombie>, private world: World, private limit: number, private interval: number) {
+  constructor(x: number, y: number, private zombies: Group<Zombie>, private world: World, public limit: number, public interval: number) {
     super(x, y);
     this.width = this.height = 16;
     this.visible = false;
@@ -166,6 +173,16 @@ export class Spawner extends Sprite {
   }
 
   hurt() {}
+
+  /** Start a new batch: `limit` zombies, one every `interval` s, first after up to `firstDelay` s. */
+  arm(limit: number, interval: number, firstDelay = 20) {
+    this.limit = limit;
+    this.interval = interval;
+    this.spawned = 0;
+    this.timer = Math.max(0, interval - Math.random() * firstDelay);
+  }
+
+  get remaining() { return this.limit - this.spawned; }
 
   update() {
     this.timer += G.elapsed;
