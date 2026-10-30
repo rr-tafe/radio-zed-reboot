@@ -101,9 +101,14 @@ export function tierOf(row: number[]): number {
 
 /** Derived stats, as Params' constructor computed them from the save. */
 export function stats() {
-  const p = (i: number) => PLAYER_SKILLS[i].values[tierOf(save.playerSkills[i])];
+  return computeStats(save);
+}
+
+/** Stats for any set of skill purchases (Classic's save, or none at all). */
+export function computeStats(src: Pick<SaveData, 'playerSkills' | 'bot1Skills' | 'bot2Skills'>) {
+  const p = (i: number) => PLAYER_SKILLS[i].values[tierOf(src.playerSkills[i])];
   const b = (bot: 0 | 1, i: number, key: 'speed' | 'damage' | 'accuracy') =>
-    BOT_SKILLS[bot][key][tierOf((bot === 0 ? save.bot1Skills : save.bot2Skills)[i])];
+    BOT_SKILLS[bot][key][tierOf((bot === 0 ? src.bot1Skills : src.bot2Skills)[i])];
   return {
     player_health: p(0),
     specialPoints: p(1),

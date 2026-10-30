@@ -85,6 +85,10 @@ export class PlayState extends State {
   protected waveNumber(): number {
     return save.lvl;
   }
+  /** The player's and partners' base stats. */
+  protected playerStats(): Stats {
+    return stats();
+  }
   /** The two partner slots: which kind (1 = Willson's AK, 2 = Summer's SSG) and stats; null = empty. */
   protected partners(st: Stats): ({ kind: 1 | 2; st: Stats } | null)[] {
     return [{ kind: 1, st }, { kind: 2, st }];
@@ -110,7 +114,7 @@ export class PlayState extends State {
   }
 
   create() {
-    const st = stats();
+    const st = this.playerStats();
     const wave = this.waveNumber();
     const L: LevelLayout = this.layoutFor();
     this.tempLeft = save.leftBarricade;
@@ -289,7 +293,7 @@ export class PlayState extends State {
   }
 
   private bulletOverlaps() {
-    const st = stats();
+    const st = this.playerStats();
     for (const b of this.bullets.members) {
       if (!b.exists || !b.solid) continue;
       // Bullets vs enemies (zombies and the spawner pads).

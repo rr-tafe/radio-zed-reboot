@@ -10,7 +10,9 @@ import { spawnInterval, zombiesPerSpawner } from '../game/data';
 import { LAYOUTS, LevelLayout } from '../game/levels';
 import { PlayState, Screens } from '../game/play';
 import { BarricadeStore } from '../game/props';
-import type { Stats } from '../game/save';
+import { Stats, computeStats, freshSave } from '../game/save';
+import { CampState } from './camp';
+import { dawnUpkeep } from './upkeep';
 import type { BotFriend } from '../game/bots';
 import { Zombie } from '../game/zombie';
 import { RESOURCES, describe } from './items';
@@ -69,6 +71,13 @@ export class StoryState extends PlayState {
   /** Who is standing guard in each partner slot this day. */
   private guards: (Survivor | null)[] = [];
 
+  /** Story mode starts from base stats (Classic's skill purchases don't carry over). */
+  protected playerStats(): Stats {
+    const st = computeStats(freshSave());
+    if (story.leaderHungry) st.player_accuracy *= 1.5;
+    return st;
+  }
+
   protected partners(st: Stats) {
     const g = story.group.filter((s) => s.job === 'guard').slice(0, MAX_GUARDS);
     // Keep a kind-1 guard in slot 1 and a kind-2 guard in slot 2 where possible.
@@ -111,7 +120,7 @@ export class StoryState extends PlayState {
     if (story.phase === 'night') this.startNight();
     else {
       // Reloading mid-dusk or mid-dawn just resumes the day or night either side of it.
-      if (story.phase === 'dawn') this.beginDay();
+      if (story.phase === 'dawn') this.finishDawn();
       else {
         if (story.phase === 'dusk') story.phase = 'day';
         this.armWanderers();
@@ -163,14 +172,16 @@ export class StoryState extends PlayState {
     persistStory();
   }
 
-  private beginDay() {
-    if (story.phase === 'dawn') story.day++;
+  /** Overnight upkeep, then the camp screen; the next day starts from there. */
+  private finishDawn() {
+    this.syncGuards();
+    story.report = dawnUpkeep();
+    story.day++;
     story.phase = 'day';
     story.clock = DAY_START;
-    this.phaseTime = 0;
-    this.armWanderers();
-    this.toasts.push(`Day ${story.day}. ${this.site.name}.`);
     persistStory();
+    const screens = this.screens;
+    switchState(() => new CampState(screens, () => new StoryState(screens)));
   }
 
   private nightOver(): boolean {
@@ -205,6 +216,12 @@ export class StoryState extends PlayState {
     }
     for (const f of [this.friend1, this.friend2]) out.push({ x: f.x + 8, y: f.y + 16, radius: 20, intensity: 0.45 });
     out.push({ x: this.radio.x + 18, y: this.radio.y + 20, radius: 26, intensity: 0.55 });
+    // Street lamps built at the barricades light the approach.
+    (this.base.lamps ?? []).forEach((lit, i) => {
+      if (!lit) return;
+      const b = i === 0 ? this.left : this.right;
+      out.push({ x: b.x + 15, y: b.y - 10, radius: 110, intensity: 0.85 });
+    });
     for (const b of this.bullets.members) {
       if (!b.exists) continue;
       // Muzzle flash on the frames right after firing, then a faint tracer glow.
@@ -268,7 +285,7 @@ export class StoryState extends PlayState {
         break;
       case 'dawn':
         this.phaseTime += dt;
-        if (this.phaseTime >= DAWN_SECONDS) this.beginDay();
+        if (this.phaseTime >= DAWN_SECONDS) this.finishDawn();
         break;
     }
   }

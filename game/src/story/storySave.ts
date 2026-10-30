@@ -14,6 +14,8 @@ export interface BaseState {
   revealed: string[];
   doors: Record<string, { state: DoorState; zombies: number; searched: boolean }>;
   searched: string[];
+  /** Street lamps built at [left, right] barricades. */
+  lamps: [boolean, boolean];
 }
 
 export interface BarricadeState { hp: number; max: number; lvl: number }
@@ -34,6 +36,10 @@ export interface StorySave {
   group: Survivor[];
   /** Fallen friends, for the record. */
   fallen: string[];
+  /** The last dawn's report, shown on the camp screen. */
+  report: string[];
+  /** The leader went without food last night (worse aim). */
+  leaderHungry: boolean;
 }
 
 function fresh(): StorySave {
@@ -49,6 +55,8 @@ function fresh(): StorySave {
     barricades: [{ hp: 100, max: 100, lvl: 0 }, { hp: 100, max: 100, lvl: 0 }],
     group: startingGroup(),
     fallen: [],
+    report: [],
+    leaderHungry: false,
   };
 }
 
@@ -89,6 +97,7 @@ export function baseFor(site: SiteDef): BaseState {
       revealed: [],
       doors: Object.fromEntries(site.doors.map((d) => [d.id, { state: d.kind as DoorState, zombies: d.zombies, searched: false }])),
       searched: [],
+      lamps: [false, false],
     };
   }
   return story.base;
