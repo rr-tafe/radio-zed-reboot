@@ -8,6 +8,7 @@ import { PlayState, Screens } from './play';
 import { persist, resetSave, save } from './save';
 import { settings, toggleWide } from './settings';
 import { ShopState } from './shop';
+import { StoryDayState } from '../story/day';
 
 const DIM = 11052705;
 const LIGHT = 14868183;
@@ -40,6 +41,7 @@ class MenuState extends State {
     const items: [string, () => void][] = [
       ['New Game', () => this.newGame()],
       ['Continue', () => this.continueGame()],
+      ['Story mode', () => switchState(() => new StoryDayState(screens))],
       [settings.wide ? 'Wide view: on' : 'Wide view: off', () => { toggleWide(); switchState(() => new MenuState()); }],
       ['Credits', () => { award(1, 3, { sp: 5 }); persist(); this.popup('playLvl_ImgCredits'); }],
       // Achievement 26 was "click the sponsor logo"; with no sponsor, Help awards it.

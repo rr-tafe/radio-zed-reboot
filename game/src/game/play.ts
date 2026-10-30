@@ -78,6 +78,8 @@ export class PlayState extends State {
   protected layoutFor(): LevelLayout {
     return layoutForWave(save.lvl);
   }
+  /** Where the player appears. */
+  protected playerStart: [number, number] = [556, 315];
   /** Whether the street spawners send a wave. */
   protected spawnsWave = true;
   /** Add anything that draws over the actors but under the HUD (fog, room overlays). */
@@ -128,7 +130,7 @@ export class PlayState extends State {
     this.friend2.thisDef = this.friend2.rightDef;
 
     this.arm = new PlayerArm();
-    this.player = new Player(556, 315, bulletList, this.arm, st);
+    this.player = new Player(this.playerStart[0], this.playerStart[1], bulletList, this.arm, st);
 
     this.weaponGui = new Sprite(1, 20);
     this.weaponGui.loadGraphic('Player_weaponGui', true, false, 45, 15);
