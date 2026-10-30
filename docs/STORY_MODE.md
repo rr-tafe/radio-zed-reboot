@@ -168,6 +168,17 @@ story mode share one engine.
 
 Steps 2–5 can be prototyped on the original art before any new art exists.
 
+### Progress
+
+* **Step 1 done** (on `main`): Classic mode complete.
+* **Step 2 done** (branch `story-mode`): Corner Shop exploration in `game/src/story/`.
+  Fogged floors; four back rooms (storeroom with a zombie, office locked behind a key from
+  the bar, washroom with no keyhole and two zombies, boarded roof hut); five searchable
+  props; keyhole peeking; resource HUD; separate save; permadeath.
+  * Tuning note: a zombie that comes out of a door lands on the player, and with the Glock
+    (10 damage) against 8 damage per second that fight is usually lost. Next step should give
+    emerging zombies a short stumble delay, or push the player back.
+
 ## Open questions
 
 * If the player character dies, does the run end, or does a friend take over?

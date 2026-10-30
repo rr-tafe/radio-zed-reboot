@@ -46,4 +46,8 @@ saving.
 Reboot change: achievement 26 ("click the sponsor logo") is awarded for opening Help.
 
 Not yet checked against the original by hand: a full 60-wave run, the win screen, sound
-levels, fade timing. Story mode is designed in `../docs/STORY_MODE.md`, not built yet.
+levels, fade timing.
+
+Story mode (prototype, `src/story/`, design in `../docs/STORY_MODE.md`): explore the
+Corner Shop by day. S opens doors and searches, holding S peeks through keyholes or pries
+boards. No day/night cycle yet.
