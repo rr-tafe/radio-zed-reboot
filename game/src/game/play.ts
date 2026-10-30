@@ -27,53 +27,70 @@ export class PlayState extends State {
   /** Gameplay states may widen the view beyond 640 px on wide screens. */
   readonly wide = true;
 
-  private map!: Tilemap;
-  private player!: Player;
-  private arm!: PlayerArm;
-  private radio!: Radio;
-  private friend1!: BotFriend;
-  private friend2!: BotFriend;
-  private left!: Barricade;
-  private right!: Barricade;
-  private blockLeft!: Block;
-  private blockRight!: Block;
-  private cursor!: Cursor;
-  private gibs!: Emitter;
-  private zombies = new Group<Zombie>();
-  private bullets = new Group<Bullet>();
-  private blocks: Sprite[] = [];
-  private bulletBlocks: Sprite[] = [];
-  private spawners: Spawner[] = [];
-  private doorsUp: Zone[] = [];
-  private doorsDown: Zone[] = [];
-  private markers!: Record<'one' | 'two' | 'left' | 'right', Zone>;
-  private hud!: Text;
-  private ammoText!: Text;
+  protected map!: Tilemap;
+  protected player!: Player;
+  protected arm!: PlayerArm;
+  protected radio!: Radio;
+  protected friend1!: BotFriend;
+  protected friend2!: BotFriend;
+  protected left!: Barricade;
+  protected right!: Barricade;
+  protected blockLeft!: Block;
+  protected blockRight!: Block;
+  protected cursor!: Cursor;
+  protected gibs!: Emitter;
+  protected zombies = new Group<Zombie>();
+  protected bullets = new Group<Bullet>();
+  protected blocks: Sprite[] = [];
+  protected bulletBlocks: Sprite[] = [];
+  protected spawners: Spawner[] = [];
+  protected doorsUp: Zone[] = [];
+  protected doorsDown: Zone[] = [];
+  protected markers!: Record<'one' | 'two' | 'left' | 'right', Zone>;
+  protected hud!: Text;
+  protected ammoText!: Text;
   private playerGUI!: Sprite;
   private weaponGui!: Sprite;
-  private black!: Sprite;
-  private fading = false;
-  private paused = false;
+  protected black!: Sprite;
+  protected fading = false;
+  protected paused = false;
   private pauseUi: (Sprite | Text)[] = [];
 
-  private zombiesLeft = 0;
-  private scoreOnLvl = 0;
-  private moneyOnLvl = 0;
-  private killsOnLvl = 0;
+  protected zombiesLeft = 0;
+  protected scoreOnLvl = 0;
+  protected moneyOnLvl = 0;
+  protected killsOnLvl = 0;
   private headShots = 0;
   private bulletHit = 0;
   private botPosition = 0;
   private tempLeft = 0;
   private tempRight = 0;
 
-  constructor(private screens: Screens) {
+  protected world!: World;
+
+  constructor(protected screens: Screens) {
     super();
+  }
+
+  // --- Extension points (story mode subclasses PlayState) ---------------------------------
+
+  /** Which building to play in. */
+  protected layoutFor(): LevelLayout {
+    return layoutForWave(save.lvl);
+  }
+  /** Whether the street spawners send a wave. */
+  protected spawnsWave = true;
+  /** Add anything that draws over the actors but under the HUD (fog, room overlays). */
+  protected addWorldOverlays() {}
+  /** Give subclasses first claim on the "use" key (S/↓); return true to consume it. */
+  protected handleUse(): boolean {
+    return false;
   }
 
   create() {
     const st = stats();
     const wave = save.lvl;
-    const L: LevelLayout = layoutForWave(wave);
+    const L: LevelLayout = this.layoutFor();
     this.tempLeft = save.leftBarricade;
     this.tempRight = save.rightBarricade;
 
@@ -84,10 +101,10 @@ export class PlayState extends State {
     this.parallax('playLvl_ImgCityBack', 0, 336, 0.1);
     this.parallax('playLvl_ImgCityBack2', 100, 316, 0.3);
     this.parallax('playLvl_ImgCityBack3', 0, 336, 0.4);
-    if (wave === 1 || wave === 2) this.add(new Sprite(580, 66, 'playLvl_ImgHelp')).moves = false;
+    if (this.spawnsWave && (wave === 1 || wave === 2)) this.add(new Sprite(580, 66, 'playLvl_ImgHelp')).moves = false;
     this.add(new Sprite(0, 0, L.backdrop)).moves = false;
 
-    this.zombiesLeft = zombiesPerSpawner(wave) * 2;
+    this.zombiesLeft = this.spawnsWave ? zombiesPerSpawner(wave) * 2 : 0;
     this.gibs = new Emitter();
     this.gibs.setXSpeed(-30, 30);
     this.gibs.setYSpeed(-200, 0);
@@ -144,10 +161,10 @@ export class PlayState extends State {
     for (const r of L.bulletBlocks) this.bulletBlocks.push(new Zone(r[0], r[1], r[2], r[3]));
     this.bulletBlocks.push(this.blockLeft, this.blockRight);
 
-    const world: World = { player: this.player, radio: this.radio, doorsUp: this.doorsUp, targets: [this.player, this.left, this.right], gibs: this.gibs };
+    const world: World = (this.world = { player: this.player, radio: this.radio, doorsUp: this.doorsUp, targets: [this.player, this.left, this.right], gibs: this.gibs });
     const interval = spawnInterval(wave);
     for (const x of [1, 1051]) {
-      const s = new Spawner(x, 400, this.zombies, world, zombiesPerSpawner(wave), interval);
+      const s = new Spawner(x, 400, this.zombies, world, this.spawnsWave ? zombiesPerSpawner(wave) : 0, interval);
       this.spawners.push(s);
       this.add(s);
     }
@@ -161,8 +178,9 @@ export class PlayState extends State {
     this.add(arm2);
     this.add(this.player);
     this.add(this.arm);
+    this.addWorldOverlays();
 
-    this.hud = this.add(new Text(17, 4, 600).setFormat(8, TEXT_COLOR, 'left', TEXT_SHADOW));
+    this.hud =this.add(new Text(17, 4, 600).setFormat(8, TEXT_COLOR, 'left', TEXT_SHADOW));
     this.hud.scrollFactor = { x: 0, y: 0 };
     this.ammoText = this.add(new Text(0, 0, 200).setFormat(8, TEXT_COLOR));
     const logo = this.add(new Sprite(5, 5, 'playLvl_Imglogo'));
@@ -207,7 +225,7 @@ export class PlayState extends State {
     if (import.meta.env.DEV && keys.justPressed('BACKSLASH')) this.zombiesLeft = 0;
     if (keys.justPressed('F')) this.cycleBots();
     const p = this.player;
-    if (keys.anyJust('DOWN', 'S')) {
+    if (keys.anyJust('DOWN', 'S') && !this.handleUse()) {
       if (this.doorsUp.some((d) => p.overlaps(d))) this.teleport(-81);
       else if (this.doorsDown.some((d) => p.overlaps(d))) this.teleport(79);
     }
@@ -302,7 +320,7 @@ export class PlayState extends State {
     }
   }
 
-  private updateHud() {
+  protected updateHud() {
     const p = this.player;
     this.hud.text = `Wave: ${save.lvl}   Score: ${save.score + this.scoreOnLvl}   Money: ${save.money + this.moneyOnLvl}`;
     if (p.health > 0) {
@@ -317,7 +335,7 @@ export class PlayState extends State {
     }
   }
 
-  private checkEnd() {
+  protected checkEnd() {
     if (this.player.health <= 0 || this.radio.health <= 0) {
       if (this.player.health <= 0 && !this.player.dead) this.player.kill();
       save.leftBarricade = this.tempLeft;
@@ -355,13 +373,13 @@ export class PlayState extends State {
     if (this.fading) this.black.alpha = Math.min(1, this.black.alpha + G.elapsed);
   }
 
-  private startFade() {
+  protected startFade() {
     if (this.fading) return;
     this.fading = true;
     playSound('blackScreen_SndFail');
   }
 
-  private togglePause() {
+  protected togglePause() {
     this.paused = !this.paused;
     for (const u of this.pauseUi) this.root.remove(u);
     this.pauseUi = [];
