@@ -216,3 +216,17 @@ export class NameTags extends Overlay {
     }
   }
 }
+
+/** Door art stamped onto walls where the backdrop has none (cut from the Corner Shop art). */
+export class DoorDecals extends Overlay {
+  constructor(private rects: Rect[], private source: { image: string; rect: Rect }) {
+    super();
+  }
+  draw(ctx: CanvasRenderingContext2D) {
+    const [sx, sy, sw, sh] = this.source.rect;
+    const image = img(this.source.image);
+    for (const [x, y, w, h] of this.rects) {
+      ctx.drawImage(image, sx, sy, sw, sh, worldX(x + w / 2 - sw / 2), worldY(y + h - sh), sw, sh);
+    }
+  }
+}

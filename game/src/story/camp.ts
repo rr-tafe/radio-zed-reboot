@@ -11,7 +11,7 @@ import type { Screens } from '../game/play';
 import { storyArmoury } from './armoury';
 import { JOBS, JOB_LABEL, Job, MAX_GUARDS } from './group';
 import { AMMO_LABEL, CALIBRE } from './items';
-import { CORNER_SHOP } from './sites';
+import { currentNode, siteFor } from './city';
 import { baseFor, count, persistStory, story } from './storySave';
 import { REPAIR_PER_MATERIAL } from './upkeep';
 
@@ -146,7 +146,7 @@ export class CampState extends State {
   }
 
   private fortify() {
-    const base = baseFor(CORNER_SHOP);
+    const base = baseFor(siteFor(currentNode()));
     base.lamps ??= [false, false];
     const [L, R] = story.barricades;
     this.add(label(353, 295, `Barricades   Left ${L.hp}/${L.max}   Right ${R.hp}/${R.max}`));

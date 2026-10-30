@@ -2,6 +2,7 @@
 
 import type { ItemId, Loot } from './items';
 import type { DoorKind, SiteDef } from './sites';
+import type { City } from './city';
 import { Survivor, startingGroup } from './group';
 import { DAY_START, Phase } from './time';
 
@@ -46,6 +47,13 @@ export interface StorySave {
   report: string[];
   /** The leader went without food last night (worse aim). */
   leaderHungry: boolean;
+  city: City;
+}
+
+/** Set by city.ts to avoid an import cycle at module load. */
+let makeCity: (seed: number) => City = () => ({ nodes: [], edges: [], current: 'start', visited: ['start'] });
+export function setCityGenerator(f: (seed: number) => City) {
+  makeCity = f;
 }
 
 function fresh(): StorySave {
@@ -63,10 +71,16 @@ function fresh(): StorySave {
     fallen: [],
     report: [],
     leaderHungry: false,
+    city: makeCity(Math.floor(Math.random() * 1e9)),
   };
 }
 
 export let story: StorySave = load();
+
+/** Old saves (before the city existed) get one on first use. */
+export function ensureCity() {
+  if (!story.city || !story.city.nodes.length) story.city = makeCity(Math.floor(Math.random() * 1e9));
+}
 
 function load(): StorySave {
   try {

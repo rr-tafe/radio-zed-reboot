@@ -15,6 +15,8 @@ export interface DoorDef {
   id: string;
   name: string;
   rect: Rect;
+  /** No door in the backdrop art here; draw the reused door decal. */
+  decal?: boolean;
   kind: DoorKind;
   keyhole: boolean;
   /** Item that opens a locked door. */
