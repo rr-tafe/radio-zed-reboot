@@ -46,10 +46,28 @@ export class PlayerArm extends Sprite {
   }
 }
 
+/** Which weapons the player has and where reloads come from. */
+export interface Armoury {
+  owns(i: number): boolean;
+  upgraded(i: number): boolean;
+  /** Take up to n rounds for weapon i from the reserve; returns how many were given. */
+  take(i: number, n: number): number;
+  /** Rounds left in reserve for weapon i (Infinity = unlimited). */
+  reserve(i: number): number;
+}
+
+/** The original: bought weapons, endless reloads. */
+export const classicArmoury: Armoury = {
+  owns: (i) => save.playerWeapons[i][0] === 2,
+  upgraded: (i) => save.playerWeapons[i][1] === 2,
+  take: (_i, n) => n,
+  reserve: () => Infinity,
+};
+
 export class Player extends Sprite {
   maxHealth: number;
   weaponNumber = 0;
-  weaponBullets = WEAPONS.map((w) => w.mag);
+  weaponBullets: number[];
   bulletNumber = 0;
   holderReload = true;
   reloadTime = 0;
@@ -66,8 +84,10 @@ export class Player extends Sprite {
   private deadFix = false;
   private yy = 0;
 
-  constructor(x: number, y: number, private bullets: Bullet[], readonly arm: PlayerArm, private st: Stats) {
+  constructor(x: number, y: number, private bullets: Bullet[], readonly arm: PlayerArm, private st: Stats, readonly armoury: Armoury = classicArmoury) {
     super(x, y);
+    // Weapons with a limited reserve start empty and load from it on first use.
+    this.weaponBullets = WEAPONS.map((w, i) => (armoury.reserve(i) === Infinity ? w.mag : 0));
     this.loadGraphic('Player_ImgPlayer', true, true, 17, 32);
     this.maxVelocity.x = st.player_speed;
     this.acceleration.y = 400;
@@ -84,13 +104,13 @@ export class Player extends Sprite {
   }
 
   get weapon() { return WEAPONS[this.weaponNumber]; }
-  owns(i: number) { return save.playerWeapons[i][0] === 2; }
+  owns(i: number) { return this.armoury.owns(i); }
 
   /** Equip weapon i and load its stats (Player.OBF_191c). */
   selectWeapon(i: number) {
     this.weaponNumber = i;
     const w = WEAPONS[i];
-    const upgraded = save.playerWeapons[i][1] === 2 ? 1 : 0;
+    const upgraded = this.armoury.upgraded(i) ? 1 : 0;
     this.arm.setWeapon(i);
     this.holderReload = true;
     this.reloadTime = this.reloadTimeMax = w.reload * this.st.player_recharge;
@@ -100,7 +120,7 @@ export class Player extends Sprite {
     this.shiftX1 = w.shiftX1;
     this.shiftX2 = w.shiftX2;
     this.shiftY1 = w.shiftY1;
-    if (this.weaponBullets[i] <= 0) {
+    if (this.weaponBullets[i] <= 0 && this.armoury.reserve(i) > 0) {
       this.holderReload = false;
       this.reloadTime = this.reloadTimeMax;
     }
@@ -163,16 +183,20 @@ export class Player extends Sprite {
       if (this.reloadTime > 0 && !this.holderReload) this.reloadTime -= G.elapsed;
       else if (this.reloadTime < 0 && !this.holderReload) {
         this.holderReload = true;
-        this.bulletNumber = this.weapon.mag;
-        this.weaponBullets[this.weaponNumber] = this.bulletNumber;
+        // Rounds still in the magazine stay there; the rest come from the reserve. With an
+        // unlimited reserve (Classic) this always fills the magazine, as the original did.
+        const i = this.weaponNumber;
+        const have = Math.max(0, this.weaponBullets[i]);
+        this.bulletNumber = have + this.armoury.take(i, this.weapon.mag - have);
+        this.weaponBullets[i] = this.bulletNumber;
       }
       if (this.attackDelay > 0) this.attackDelay -= G.elapsed;
 
-      const canFire = this.holderReload && this.attackDelay <= 0 && this.arm.dist > 5;
+      const canFire = this.holderReload && this.bulletNumber > 0 && this.attackDelay <= 0 && this.arm.dist > 5;
       const trigger = this.weapon.auto ? keys.pressed('MOUSE') : keys.justPressed('MOUSE');
       if (canFire && (trigger || keys.justPressed('MOUSE'))) this.fire();
 
-      if (keys.justPressed('R') && this.holderReload && this.bulletNumber < this.weapon.mag) {
+      if (keys.justPressed('R') && this.holderReload && this.bulletNumber < this.weapon.mag && this.armoury.reserve(this.weaponNumber) > 0) {
         this.bulletNumber = 0;
         this.holderReload = false;
         this.reloadTime = this.reloadTimeMax;
@@ -198,7 +222,7 @@ export class Player extends Sprite {
     this.attackDelay = this.attackDelayMax;
     this.bulletNumber--;
     this.weaponBullets[this.weaponNumber]--;
-    if (this.bulletNumber <= 0) {
+    if (this.bulletNumber <= 0 && this.armoury.reserve(this.weaponNumber) > 0) {
       this.holderReload = false;
       this.reloadTime = this.reloadTimeMax;
     }

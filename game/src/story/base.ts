@@ -12,6 +12,7 @@ import { PlayState, Screens } from '../game/play';
 import { BarricadeStore } from '../game/props';
 import { Zombie } from '../game/zombie';
 import { RESOURCES, describe } from './items';
+import { storyArmoury } from './armoury';
 import { Darkness, Light } from './lighting';
 import { Fog, Keyhole, OpenDoorways, Prompt, Toasts } from './overlays';
 import { CORNER_SHOP, DoorDef, PropDef, SiteDef } from './sites';
@@ -59,6 +60,7 @@ export class StoryState extends PlayState {
     this.spawnsWave = false;
     this.playerStart = CORNER_SHOP.start;
     this.barricades = storyBarricades;
+    this.armoury = storyArmoury;
   }
 
   /** Night N uses Classic wave N's size and spawn rate. */
@@ -437,6 +439,13 @@ export class StoryState extends PlayState {
 
   protected updateHud() {
     super.updateHud();
+    // Show the reserve for weapons that have one ("12 / 40"); the Glock never runs out.
+    const p = this.player;
+    const reserve = this.armoury.reserve(p.weaponNumber);
+    if (p.health > 0 && reserve !== Infinity) {
+      const [mag, hp] = this.ammoText.text.split('\n');
+      this.ammoText.text = `${mag} / ${reserve}\n${hp}`;
+    }
     const res = RESOURCES.map((r) => `${r.label} ${count(r.id)}`).join('   ');
     const when = story.phase === 'night' ? `Night ${story.day}, ${MOON_LABEL[this.moon]}`
       : story.phase === 'dawn' ? `Dawn after night ${story.day}`

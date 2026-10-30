@@ -10,7 +10,7 @@ import { BotArm, BotFriend } from './bots';
 import { Bullet } from './bullet';
 import { FINAL_WAVE, TEXT_COLOR, TEXT_SHADOW, spawnInterval, zombiesPerSpawner } from './data';
 import { LevelLayout, layoutForWave } from './levels';
-import { Player, PlayerArm } from './player';
+import { Armoury, Player, PlayerArm, classicArmoury } from './player';
 import { Barricade, BarricadeStore, Block, Cursor, Radio, Zone, classicBarricades } from './props';
 import { persist, save, stats } from './save';
 import { Spawner, World, Zombie } from './zombie';
@@ -84,6 +84,8 @@ export class PlayState extends State {
   protected waveNumber(): number {
     return save.lvl;
   }
+  /** Which weapons the player has and where their ammo comes from. */
+  protected armoury: Armoury = classicArmoury;
   /** Where barricade levels and health are stored. */
   protected barricades: BarricadeStore = classicBarricades;
   /** Whether the street spawners send a wave. */
@@ -140,7 +142,7 @@ export class PlayState extends State {
     this.friend2.thisDef = this.friend2.rightDef;
 
     this.arm = new PlayerArm();
-    this.player = new Player(this.playerStart[0], this.playerStart[1], bulletList, this.arm, st);
+    this.player = new Player(this.playerStart[0], this.playerStart[1], bulletList, this.arm, st, this.armoury);
 
     this.weaponGui = new Sprite(1, 20);
     this.weaponGui.loadGraphic('Player_weaponGui', true, false, 45, 15);
@@ -340,7 +342,8 @@ export class PlayState extends State {
       this.ammoText.y = p.y - 20;
       this.playerGUI.x = this.playerGUI.px = p.x - 4;
       this.playerGUI.y = this.playerGUI.py = p.y - 17;
-      this.ammoText.text = (p.bulletNumber <= 0 ? 'Reloading... ' : String(p.bulletNumber)) + '\n' + String(p.health);
+      const mag = p.bulletNumber > 0 ? String(p.bulletNumber) : p.holderReload ? 'Empty' : 'Reloading... ';
+      this.ammoText.text = mag + '\n' + String(p.health);
     } else {
       this.ammoText.exists = false;
       this.playerGUI.exists = false;

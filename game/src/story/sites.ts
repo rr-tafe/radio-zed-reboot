@@ -50,11 +50,11 @@ export const CORNER_SHOP: SiteDef = {
   doors: [
     {
       id: 'storeroom', name: 'Storeroom', rect: [578, 399, 19, 33], kind: 'closed', keyhole: true, zombies: 1,
-      loot: [{ item: 'food', qty: 4 }, { item: 'ammo9', qty: 30 }, { item: 'materials', qty: 2 }],
+      loot: [{ item: 'weapon:2', qty: 1 }, { item: 'ammo9', qty: 40 }, { item: 'food', qty: 4 }, { item: 'materials', qty: 2 }],
     },
     {
       id: 'office', name: 'Office', rect: [477, 318, 20, 33], kind: 'locked', key: 'office', keyhole: true, zombies: 0,
-      loot: [{ item: 'cash', qty: 80 }, { item: 'meds', qty: 1 }, { item: 'ammo9', qty: 15 }, { item: 'note:owner', qty: 1 }],
+      loot: [{ item: 'weapon:1', qty: 1 }, { item: 'ammo50', qty: 16 }, { item: 'cash', qty: 80 }, { item: 'meds', qty: 1 }, { item: 'note:owner', qty: 1 }],
       text: 'A note on the desk: "Radio said head north. Gone to my sister\'s."',
     },
     {
