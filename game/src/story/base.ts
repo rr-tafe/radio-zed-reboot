@@ -1,17 +1,33 @@
-// Story mode, daytime at a base: explore the building, open back rooms, peek through
-// keyholes, search props. Built on PlayState so movement, shooting, partners and zombies
-// behave exactly as in Classic.
+// Story mode at a base. Day: explore the building, open back rooms, peek through keyholes,
+// search props, fend off a few wanderers. Dusk, then night: defend the radio against a wave
+// sized by the night number and the moon. Dawn starts the next day. Built on PlayState so
+// movement, shooting, partners and zombies behave exactly as in Classic.
 
 import { G, switchState } from '../engine/core';
 import { keys } from '../engine/input';
 import { play } from '../engine/sound';
+import { spawnInterval, zombiesPerSpawner } from '../game/data';
 import { LAYOUTS, LevelLayout } from '../game/levels';
 import { PlayState, Screens } from '../game/play';
+import { BarricadeStore } from '../game/props';
 import { Zombie } from '../game/zombie';
 import { RESOURCES, describe } from './items';
 import { Fog, Keyhole, OpenDoorways, Prompt, Toasts } from './overlays';
 import { CORNER_SHOP, DoorDef, PropDef, SiteDef } from './sites';
+import { Sky, nightSkyFor } from './sky';
 import { BaseState, baseFor, count, give, has, newStory, persistStory, story } from './storySave';
+import {
+  DAWN_SECONDS, DAY_RATE, DAY_START, DUSK_SECONDS, DUSK_START, MOON_DARKNESS, MOON_LABEL, Moon, NIGHT_START, WAIT_RATE,
+  clockText, moonFor,
+} from './time';
+
+/** Barricades keep their own health in the story save. */
+const storyBarricades: BarricadeStore = {
+  lvl: (s) => story.barricades[s].lvl,
+  max: (s) => story.barricades[s].max,
+  get: (s) => story.barricades[s].hp,
+  set: (s, hp) => { story.barricades[s].hp = Math.max(0, hp); },
+};
 
 type Target = { kind: 'door'; def: DoorDef } | { kind: 'prop'; def: PropDef };
 
@@ -20,7 +36,7 @@ const PEEK_DELAY = 0.3;
 const PRY_TIME = 3;
 const SEARCH_TIME = 1.2;
 
-export class StoryDayState extends PlayState {
+export class StoryState extends PlayState {
   private site: SiteDef = CORNER_SHOP;
   private base!: BaseState;
   private keyhole = new Keyhole();
@@ -28,11 +44,32 @@ export class StoryDayState extends PlayState {
   private prompt = new Prompt();
   private hold: { target: Target; time: number; acted: boolean } | null = null;
   private action: { target: Target; time: number; done: () => void } | null = null;
+  /** Seconds into the current dusk or dawn transition. */
+  private phaseTime = 0;
+  /** Fast-forwarding to dusk after using the radio. */
+  private waiting = false;
 
   constructor(screens: Screens) {
     super(screens);
     this.spawnsWave = false;
     this.playerStart = CORNER_SHOP.start;
+    this.barricades = storyBarricades;
+  }
+
+  /** Night N uses Classic wave N's size and spawn rate. */
+  protected waveNumber() {
+    return story.day;
+  }
+
+  private get moon(): Moon {
+    return moonFor(story.day, story.moonOffset);
+  }
+
+  protected addSky() {
+    this.add(new Sky(
+      () => ({ phase: story.phase, t: this.phaseTime / (story.phase === 'dawn' ? DAWN_SECONDS : DUSK_SECONDS), moon: this.moon }),
+      () => nightSkyFor(this.moon, story.day + story.moonOffset),
+    ));
   }
 
   protected layoutFor(): LevelLayout {
@@ -45,9 +82,92 @@ export class StoryDayState extends PlayState {
     this.add(this.toasts);
     this.add(this.keyhole);
     this.reveal();
-    this.toasts.push(`Day ${story.day}. ${this.site.name}.`);
-    this.toasts.push('S: open doors and search.  Hold S: peek through a keyhole.');
+    if (story.phase === 'night') this.startNight();
+    else {
+      // Reloading mid-dusk or mid-dawn just resumes the day or night either side of it.
+      if (story.phase === 'dawn') this.beginDay();
+      else {
+        if (story.phase === 'dusk') story.phase = 'day';
+        this.armWanderers();
+        this.toasts.push(`Day ${story.day}. ${this.site.name}. ${clockText(story.clock)}.`);
+        if (story.day === 1) this.toasts.push('S: open doors and search.  Hold S: peek through a keyhole.');
+      }
+    }
     persistStory();
+  }
+
+  // --- Day and night -------------------------------------------------------------------------
+
+  /** A few slow wanderers by day. */
+  private armWanderers() {
+    for (const s of this.spawners) s.arm(2, 45, 40);
+  }
+
+  private startNight() {
+    story.phase = 'night';
+    this.waiting = false;
+    const wave = this.waveNumber();
+    // Darker nights bring more of them.
+    const n = Math.round(zombiesPerSpawner(wave) * (1 + MOON_DARKNESS[this.moon] * 0.4));
+    for (const s of this.spawners) s.arm(n, spawnInterval(wave), 10);
+    this.radio.health = 100;
+    this.radio.tag.set(100);
+    this.toasts.push(`Night ${story.day}, ${MOON_LABEL[this.moon]}. Protect the radio.`, 5);
+    persistStory();
+  }
+
+  private beginDay() {
+    if (story.phase === 'dawn') story.day++;
+    story.phase = 'day';
+    story.clock = DAY_START;
+    this.phaseTime = 0;
+    this.armWanderers();
+    this.toasts.push(`Day ${story.day}. ${this.site.name}.`);
+    persistStory();
+  }
+
+  private nightOver(): boolean {
+    return this.spawners.every((s) => s.remaining <= 0) && !this.zombies.members.some((z) => z.exists && !z.zombieDead);
+  }
+
+  private updateTime() {
+    const dt = G.elapsed;
+    switch (story.phase) {
+      case 'day': {
+        const before = Math.floor(story.clock / 60);
+        story.clock += dt * (this.waiting ? WAIT_RATE : DAY_RATE);
+        if (Math.floor(story.clock / 60) !== before) persistStory();
+        if (story.clock >= DUSK_START) {
+          story.clock = DUSK_START;
+          story.phase = 'dusk';
+          this.phaseTime = 0;
+          this.waiting = false;
+          this.toasts.push('Dusk. Get ready.');
+          persistStory();
+        }
+        break;
+      }
+      case 'dusk':
+        this.phaseTime += dt;
+        story.clock = DUSK_START + (this.phaseTime / DUSK_SECONDS) * (NIGHT_START - DUSK_START);
+        if (this.phaseTime >= DUSK_SECONDS) {
+          story.clock = NIGHT_START;
+          this.startNight();
+        }
+        break;
+      case 'night':
+        if (this.nightOver()) {
+          story.phase = 'dawn';
+          this.phaseTime = 0;
+          this.toasts.push(`Dawn. You made it through night ${story.day}.`, 5);
+          persistStory();
+        }
+        break;
+      case 'dawn':
+        this.phaseTime += dt;
+        if (this.phaseTime >= DAWN_SECONDS) this.beginDay();
+        break;
+    }
   }
 
   protected addWorldOverlays() {
@@ -71,7 +191,16 @@ export class StoryDayState extends PlayState {
     return prop ? { kind: 'prop', def: prop } : null;
   }
 
+  private nearRadio() {
+    return !this.player.dead && this.player.overlaps(this.radio);
+  }
+
   protected handleUse(): boolean {
+    if (story.phase === 'day' && this.nearRadio()) {
+      this.waiting = !this.waiting;
+      this.toasts.push(this.waiting ? 'Waiting for nightfall... (S again to stop)' : 'Stopped waiting.');
+      return true;
+    }
     const t = this.nearest();
     if (!t) return false;
     this.hold = { target: t, time: 0, acted: false };
@@ -196,7 +325,8 @@ export class StoryDayState extends PlayState {
     const p = this.player;
     this.prompt.x = p.x + p.width / 2;
     this.prompt.y = p.y;
-    this.prompt.text = near && !this.keyhole.view ? this.promptFor(near) : '';
+    this.prompt.text = near && !this.keyhole.view ? this.promptFor(near)
+      : story.phase === 'day' && this.nearRadio() ? (this.waiting ? 'Waiting... (S: stop)' : 'S: wait for nightfall') : '';
     const boarded = h && h.target.kind === 'door' && this.doorState(h.target.def).state === 'boarded' && !h.acted;
     this.prompt.progress = this.action ? this.action.time / SEARCH_TIME : boarded ? h!.time / PRY_TIME : -1;
   }
@@ -236,6 +366,7 @@ export class StoryDayState extends PlayState {
     if (!this.paused) {
       this.updateInteraction();
       this.reveal();
+      if (!this.fading) this.updateTime();
     }
     super.update();
   }
@@ -243,7 +374,10 @@ export class StoryDayState extends PlayState {
   protected updateHud() {
     super.updateHud();
     const res = RESOURCES.map((r) => `${r.label} ${count(r.id)}`).join('   ');
-    this.hud.text = `Day ${story.day}  ${this.site.name}      ${res}`;
+    const when = story.phase === 'night' ? `Night ${story.day}, ${MOON_LABEL[this.moon]}`
+      : story.phase === 'dawn' ? `Dawn after night ${story.day}`
+      : `Day ${story.day}  ${clockText(story.clock)}`;
+    this.hud.text = `${when}   ${this.site.name}      ${res}`;
   }
 
   protected checkEnd() {

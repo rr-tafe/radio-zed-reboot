@@ -2,6 +2,7 @@
 
 import type { ItemId, Loot } from './items';
 import type { DoorKind, SiteDef } from './sites';
+import { DAY_START, Phase } from './time';
 
 const KEY = 'radiozed.story.v1';
 
@@ -14,15 +15,33 @@ export interface BaseState {
   searched: string[];
 }
 
+export interface BarricadeState { hp: number; max: number; lvl: number }
+
 export interface StorySave {
   version: 1;
   day: number;
+  /** Game minutes after midnight. */
+  clock: number;
+  phase: Phase;
+  /** Where in the 8-night moon cycle this run started. */
+  moonOffset: number;
   items: Partial<Record<ItemId, number>>;
   base: BaseState | null;
+  /** [left, right], as in the original. */
+  barricades: [BarricadeState, BarricadeState];
 }
 
 function fresh(): StorySave {
-  return { version: 1, day: 1, items: {}, base: null };
+  return {
+    version: 1,
+    day: 1,
+    clock: DAY_START,
+    phase: 'day',
+    moonOffset: Math.floor(Math.random() * 8),
+    items: {},
+    base: null,
+    barricades: [{ hp: 100, max: 100, lvl: 0 }, { hp: 100, max: 100, lvl: 0 }],
+  };
 }
 
 export let story: StorySave = load();

@@ -88,6 +88,13 @@ export class PlayState extends State {
   protected barricades: BarricadeStore = classicBarricades;
   /** Whether the street spawners send a wave. */
   protected spawnsWave = true;
+  /** The sky behind everything. */
+  protected addSky() {
+    // The original picks 0–4 and maps both 1 and 2 to SpaceMoon2 (SpaceMoon1 is unused).
+    const sky = ['playLvl_ImgSpaceMoon', 'playLvl_ImgSpaceMoon2', 'playLvl_ImgSpaceMoon2', 'playLvl_ImgSpaceMoon3', 'playLvl_ImgSpaceMoon4'];
+    const space = this.add(new Sprite(0, 0, sky[Math.floor(Math.random() * 5)]));
+    space.scrollFactor = { x: 0, y: 0 };
+  }
   /** Add anything that draws over the actors but under the HUD (fog, room overlays). */
   protected addWorldOverlays() {}
   /** Give subclasses first claim on the "use" key (S/↓); return true to consume it. */
@@ -102,10 +109,7 @@ export class PlayState extends State {
     this.tempLeft = save.leftBarricade;
     this.tempRight = save.rightBarricade;
 
-    // Sky. The original picks 0–4 and maps both 1 and 2 to SpaceMoon2 (SpaceMoon1 is unused).
-    const sky = ['playLvl_ImgSpaceMoon', 'playLvl_ImgSpaceMoon2', 'playLvl_ImgSpaceMoon2', 'playLvl_ImgSpaceMoon3', 'playLvl_ImgSpaceMoon4'];
-    const space = this.add(new Sprite(0, 0, sky[Math.floor(Math.random() * 5)]));
-    space.scrollFactor = { x: 0, y: 0 };
+    this.addSky();
     this.parallax('playLvl_ImgCityBack', 0, 336, 0.1);
     this.parallax('playLvl_ImgCityBack2', 100, 316, 0.3);
     this.parallax('playLvl_ImgCityBack3', 0, 336, 0.4);
