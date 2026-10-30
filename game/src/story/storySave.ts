@@ -38,7 +38,8 @@ function fresh(): StorySave {
     clock: DAY_START,
     phase: 'day',
     moonOffset: Math.floor(Math.random() * 8),
-    items: {},
+    // Everyone starts with a flashlight and one battery.
+    items: { batteries: 1 },
     base: null,
     barricades: [{ hp: 100, max: 100, lvl: 0 }, { hp: 100, max: 100, lvl: 0 }],
   };

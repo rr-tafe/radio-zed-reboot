@@ -4,7 +4,7 @@
 // movement, shooting, partners and zombies behave exactly as in Classic.
 
 import { G, switchState } from '../engine/core';
-import { keys } from '../engine/input';
+import { keys, mouse } from '../engine/input';
 import { play } from '../engine/sound';
 import { spawnInterval, zombiesPerSpawner } from '../game/data';
 import { LAYOUTS, LevelLayout } from '../game/levels';
@@ -12,6 +12,7 @@ import { PlayState, Screens } from '../game/play';
 import { BarricadeStore } from '../game/props';
 import { Zombie } from '../game/zombie';
 import { RESOURCES, describe } from './items';
+import { Darkness, Light } from './lighting';
 import { Fog, Keyhole, OpenDoorways, Prompt, Toasts } from './overlays';
 import { CORNER_SHOP, DoorDef, PropDef, SiteDef } from './sites';
 import { Sky, nightSkyFor } from './sky';
@@ -35,6 +36,8 @@ type Target = { kind: 'door'; def: DoorDef } | { kind: 'prop'; def: PropDef };
 const PEEK_DELAY = 0.3;
 const PRY_TIME = 3;
 const SEARCH_TIME = 1.2;
+/** Seconds of flashlight use per battery. */
+const BATTERY_SECONDS = 90;
 
 export class StoryState extends PlayState {
   private site: SiteDef = CORNER_SHOP;
@@ -48,6 +51,8 @@ export class StoryState extends PlayState {
   private phaseTime = 0;
   /** Fast-forwarding to dusk after using the radio. */
   private waiting = false;
+  private flashlight = false;
+  private batteryUse = 0;
 
   constructor(screens: Screens) {
     super(screens);
@@ -130,6 +135,62 @@ export class StoryState extends PlayState {
     return this.spawners.every((s) => s.remaining <= 0) && !this.zombies.members.some((z) => z.exists && !z.zombieDead);
   }
 
+  // --- Light ---------------------------------------------------------------------------------
+
+  /** 0 by day; at night set by the moon; ramps through dusk and dawn. */
+  private darkness(): number {
+    const night = MOON_DARKNESS[this.moon];
+    switch (story.phase) {
+      case 'day': return 0;
+      case 'dusk': return night * Math.min(1, this.phaseTime / DUSK_SECONDS);
+      case 'dawn': return night * Math.max(0, 1 - this.phaseTime / DAWN_SECONDS);
+      default: return night;
+    }
+  }
+
+  private lights(): Light[] {
+    const out: Light[] = [];
+    const p = this.player;
+    const pcx = p.x + p.width / 2;
+    const pcy = p.y + 10;
+    if (!p.dead) {
+      // Eyes adjust: a small pool of visibility around the player.
+      out.push({ x: pcx, y: p.y + 16, radius: 30, intensity: 0.6 });
+      if (this.flashlight) {
+        const angle = Math.atan2(mouse.y - pcy, mouse.x - pcx);
+        out.push({ x: pcx, y: pcy, radius: 210, intensity: 0.95, angle, spread: 0.38 });
+      }
+    }
+    for (const f of [this.friend1, this.friend2]) out.push({ x: f.x + 8, y: f.y + 16, radius: 20, intensity: 0.45 });
+    out.push({ x: this.radio.x + 18, y: this.radio.y + 20, radius: 26, intensity: 0.55 });
+    for (const b of this.bullets.members) {
+      if (!b.exists) continue;
+      // Muzzle flash on the frames right after firing, then a faint tracer glow.
+      if (b.age < 0.05) out.push({ x: b.x, y: b.y, radius: 56, intensity: 0.9 });
+      else out.push({ x: b.x + 10, y: b.y, radius: 12, intensity: 0.5 });
+    }
+    return out;
+  }
+
+  private updateFlashlight() {
+    if (keys.justPressed('L')) {
+      if (this.flashlight) this.flashlight = false;
+      else if (count('batteries') > 0) this.flashlight = true;
+      else this.toasts.push('No batteries for the flashlight.');
+    }
+    if (!this.flashlight) return;
+    this.batteryUse += G.elapsed;
+    if (this.batteryUse >= BATTERY_SECONDS) {
+      this.batteryUse = 0;
+      story.items.batteries = Math.max(0, count('batteries') - 1);
+      persistStory();
+      if (count('batteries') === 0) {
+        this.flashlight = false;
+        this.toasts.push('The flashlight dies. No batteries left.');
+      }
+    }
+  }
+
   private updateTime() {
     const dt = G.elapsed;
     switch (story.phase) {
@@ -174,6 +235,7 @@ export class StoryState extends PlayState {
     const doors = this.site.doors.map((d) => ({ rect: d.rect, isOpen: () => this.base.doors[d.id].state === 'open' }));
     this.add(new OpenDoorways(doors));
     this.add(new Fog(this.site.floors, (id) => this.base.revealed.includes(id)));
+    this.add(new Darkness(() => this.darkness(), () => this.lights()));
     this.add(this.prompt);
   }
 
@@ -272,8 +334,9 @@ export class StoryState extends PlayState {
 
   private peekView(d: DoorDef) {
     const s = this.doorState(d);
-    // Daylight for now; night and moon phases come with the day/night cycle.
-    return { zombies: s.zombies, items: s.searched ? 0 : d.loot.length, light: 1 };
+    // A flashlight through the keyhole helps on dark nights.
+    const dark = this.darkness() * (this.flashlight ? 0.3 : 1);
+    return { zombies: s.zombies, items: s.searched ? 0 : d.loot.length, light: 1 - dark };
   }
 
   private updateInteraction() {
@@ -367,6 +430,7 @@ export class StoryState extends PlayState {
       this.updateInteraction();
       this.reveal();
       if (!this.fading) this.updateTime();
+      this.updateFlashlight();
     }
     super.update();
   }
