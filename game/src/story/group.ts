@@ -5,9 +5,9 @@
 import { BOT_SKILLS } from '../game/data';
 import type { Stats } from '../game/save';
 
-export type Job = 'guard' | 'rest' | 'build';
-export const JOBS: Job[] = ['guard', 'rest', 'build'];
-export const JOB_LABEL: Record<Job, string> = { guard: 'Guard', rest: 'Rest', build: 'Build' };
+export type Job = 'guard' | 'rest' | 'build' | 'scavenge';
+export const JOBS: Job[] = ['guard', 'rest', 'build', 'scavenge'];
+export const JOB_LABEL: Record<Job, string> = { guard: 'Guard', rest: 'Rest', build: 'Build', scavenge: 'Scav' };
 
 export const MAX_FRIENDS = 4;
 export const MAX_GUARDS = 2;
@@ -23,6 +23,21 @@ export interface Survivor {
   /** Skill tiers 0–3 for [speed, damage, accuracy], as in the original's partner skills. */
   skills: [number, number, number];
   hungry: boolean;
+}
+
+/** Survivors who can be found and join. */
+const RECRUIT_NAMES = ['Marta', 'Dev', 'Ollie', 'June', 'Kofi', 'Rosa', 'Theo', 'Imani', 'Pete', 'Ana', 'Sami', 'Lou'];
+
+export function recruit(r: () => number, taken: string[]): Survivor {
+  const free = RECRUIT_NAMES.filter((n) => !taken.includes(n));
+  const name = free.length ? free[Math.floor(r() * free.length)] : `Survivor ${taken.length + 1}`;
+  const kind = (r() < 0.5 ? 1 : 2) as 1 | 2;
+  const tier = () => (r() < 0.3 ? 1 : 0);
+  const maxHp = 100;
+  return {
+    id: name.toLowerCase().replace(/\s+/g, '-'), name, kind, hp: 50 + Math.floor(r() * 40), maxHp,
+    job: 'rest', skills: [tier(), tier(), tier()], hungry: false,
+  };
 }
 
 export function startingGroup(): Survivor[] {

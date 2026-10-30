@@ -1,6 +1,7 @@
 // What happens overnight between the night's fight and the next morning: everyone eats,
 // the injured heal, builders fix the barricades. Returns a report for the camp screen.
 
+import { resolveScavenging } from './scavenge';
 import { count, story } from './storySave';
 
 const REST_HEAL = 40;
@@ -11,7 +12,8 @@ export const REPAIR_PER_MATERIAL = 25;
 const BUILDER_MATERIALS = 2;
 
 export function dawnUpkeep(): string[] {
-  const report: string[] = [];
+  // The scavengers come home first (and eat with everyone else).
+  const report: string[] = resolveScavenging(story.day * 7919 + story.moonOffset * 31 + story.city.visited.length);
   const take = (id: 'food' | 'meds' | 'materials') => {
     if (count(id) <= 0) return false;
     story.items[id] = count(id) - 1;
@@ -29,7 +31,7 @@ export function dawnUpkeep(): string[] {
     if (!s.hungry) eaten++;
     else report.push(`${s.name} went hungry. (worse aim, no healing)`);
   }
-  report.unshift(`The group ate ${eaten} of ${mouths} food. ${count('food')} left.`);
+  report.push(`The group ate ${eaten} of ${mouths} food. ${count('food')} left.`);
 
   // Healing, then medicine for anyone still badly hurt.
   for (const s of story.group) {

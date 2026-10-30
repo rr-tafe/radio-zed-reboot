@@ -14,6 +14,7 @@ import { AMMO_LABEL, CALIBRE } from './items';
 import { currentNode, siteFor } from './city';
 import { baseFor, count, persistStory, story } from './storySave';
 import { REPAIR_PER_MATERIAL } from './upkeep';
+import { party, scavengeTarget, scavengeTargets } from './scavenge';
 
 const DIM = 11052705;
 const REINFORCE_COST = [6, 12, 20];
@@ -124,7 +125,8 @@ export class CampState extends State {
       JOBS.forEach((job: Job, k) => {
         const selected = s.job === job;
         const allowed = job !== 'guard' || selected || guards < MAX_GUARDS;
-        this.add(new TextButton(212 + k * 34, y, JOB_LABEL[job], allowed && !selected, selected, () => {
+        const xs = [200, 231, 257, 288];
+        this.add(new TextButton(xs[k], y, JOB_LABEL[job], allowed && !selected, selected, () => {
           s.job = job;
           this.reopen();
         }));
@@ -132,6 +134,28 @@ export class CampState extends State {
     });
     if (!story.group.length) this.add(label(120, 274, 'You are on your own.'));
     if (story.fallen.length) this.add(label(120, 274 + Math.max(1, story.group.length) * 18 + 4, `Lost: ${story.fallen.join(', ')}`, 8, DIM));
+    this.scavenging();
+  }
+
+  /** Where the scavengers (job "Scav") go today. */
+  private scavenging() {
+    const targets = scavengeTargets();
+    const target = scavengeTarget();
+    const going = party();
+    if (!going.length || !target) {
+      this.add(label(120, 384, going.length ? 'Nowhere to scavenge from here.' : 'Set a job to Scav to send a party out.', 8, DIM));
+      return;
+    }
+    story.scavengeTarget = target.id;
+    const i = targets.indexOf(target);
+    const cycle = (d: number) => () => {
+      story.scavengeTarget = targets[(i + d + targets.length) % targets.length].id;
+      this.reopen();
+    };
+    this.add(label(120, 376, `Scavenge: ${target.name}${target.danger ? ' ' + '!'.repeat(target.danger) : ''}`));
+    this.add(new TextButton(120, 388, '< prev', targets.length > 1, false, cycle(-1)));
+    this.add(new TextButton(160, 388, 'next >', targets.length > 1, false, cycle(1)));
+    this.add(label(205, 388, `${going.length} going, back at dawn`, 8, DIM));
   }
 
   private armoury() {

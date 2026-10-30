@@ -54,6 +54,21 @@ function roll(r: Rng, tag: LootTag, danger: number): Loot[] {
   return out;
 }
 
+/** A scavenging party's haul from a location: `rolls` draws on that kind of place's tables. */
+export function scavengeLoot(node: { type: string; danger: number }, rolls: number, r: Rng): Loot[] {
+  const type = (node.type === 'station' ? 'tower' : node.type) as SiteType;
+  const tags = [...ROOM_TAGS[type], ...TEMPLATES[type].props.map((p) => p.tag)];
+  const merged = new Map<string, number>();
+  for (let i = 0; i < rolls; i++) {
+    for (const l of roll(r, pick(r, tags), node.danger)) {
+      // Keys and notes only make sense inside the building itself.
+      if (l.item.startsWith('key:')) continue;
+      merged.set(l.item, (merged.get(l.item) ?? 0) + l.qty);
+    }
+  }
+  return [...merged].map(([item, qty]) => ({ item: item as Loot['item'], qty: item.startsWith('weapon:') ? 1 : qty }));
+}
+
 /** What tends to be behind doors here. */
 const ROOM_TAGS: Record<SiteType, LootTag[]> = {
   shop: ['storage', 'office', 'kitchen'],

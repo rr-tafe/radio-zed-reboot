@@ -48,6 +48,8 @@ export interface StorySave {
   /** The leader went without food last night (worse aim). */
   leaderHungry: boolean;
   city: City;
+  /** Where scavengers go today (a city node id). */
+  scavengeTarget: string | null;
 }
 
 /** Set by city.ts to avoid an import cycle at module load. */
@@ -72,6 +74,7 @@ function fresh(): StorySave {
     report: [],
     leaderHungry: false,
     city: makeCity(Math.floor(Math.random() * 1e9)),
+    scavengeTarget: null,
   };
 }
 
