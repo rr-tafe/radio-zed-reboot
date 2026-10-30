@@ -201,6 +201,24 @@ Steps 2–5 can be prototyped on the original art before any new art exists.
   * Story mode uses base stats; Classic's skill purchases don't carry over.
   * Not yet: new survivors to recruit, a trader for cash, ammo for partners, a lamp sprite,
     leader health carried between days, opening the camp mid-day.
+* **Step 5 done** (branch `story-mode`): threat, overrun, flight, city map.
+  * Threat per base (HUD): +18 per night survived (+4 per night already there), +0.15 per shot
+    by day, +3 for prying boards, −8 for a day without gunfire. At 100 the next night is a siege.
+  * Siege: three times the wave, one zombie a second from each side. After 35 s (or if the radio
+    falls) the radio finds a new bearing, the left barricade is breached, and reaching the street
+    on the left opens the city map. Losing the radio during a siege doesn't end the run.
+  * Leaving early: hold S at the radio by day (2 s); the map offers "Stay here".
+  * City: 6 columns from the Corner Shop to the Radio Station, 2–3 locations per column, seeded
+    per run, drawn over the darkened menu art. Travel takes a day; fleeing loses half of every
+    consumable, leaving in good order only drops materials beyond 6 per person. Barricades and
+    lamps stay behind.
+  * Generated bases use the three original buildings as templates (doors, props and floors
+    measured from the art). The Apartments have no back doors drawn, so the Corner Shop's door
+    art is stamped onto the wall. Door kinds, keyholes, zombies and loot are rolled by location
+    type and danger; locked doors' keys are hidden in props.
+  * Radio Station: placeholder ending (days survived, who made it, who was lost); closes the run.
+  * Only three location types exist until new art arrives (step 7): shop, apartments, tower. Gas
+    station, police station, hospital and church need their own art kits.
 
 ## Open questions
 

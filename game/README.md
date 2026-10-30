@@ -52,4 +52,6 @@ Story mode (prototype, `src/story/`, design in `../docs/STORY_MODE.md`): explore
 Corner Shop by day, defend it at night. S opens doors and searches; holding S peeks through
 keyholes or pries boards; S at the radio waits for nightfall; L toggles the flashlight.
 Each dawn opens the camp: set jobs, check weapons and ammo, repair or reinforce barricades,
-put up street lamps.
+put up street lamps. Threat builds the longer you stay and the more noise you make; when it
+fills, the night is a siege and you run for it. Hold S at the radio to move on early. The city
+map leads through generated buildings to the Radio Station.
