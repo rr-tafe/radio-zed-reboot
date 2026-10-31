@@ -41,7 +41,24 @@ Findings:
   the police station's floors are ~100 px apart (the original's are 80).
 * Pillars and "people" appear unprompted; ask for "open rooms without columns".
 
-## Recommended next approach: one storey at a time
+## Room-panel tests (round 3)
+
+| Test | Result |
+|---|---|
+| Police ground floor | **Best yet.** Long low strip, front-on, crisp outlines, flat fills; doorway left, desk, bench, cell, stairs right. Side walls slightly angled; one garbled sign. Fits at **256 × 94 game px** (one storey plus roof edge). |
+| Police upper floor | Strip, but with an unwanted roof/mezzanine, angled side walls and noise. |
+| Gas station shop ("the inside of…") | A deep one-point-perspective box, product labels everywhere. Unusable. |
+
+Findings:
+
+* **A few named pieces of furniture in a long, low strip stays flat.** Busy subjects (shelves of
+  products) and "the inside of…" phrasing produce deep perspective boxes.
+* Generators rarely return pure white; the pipeline now finds the background colour from the
+  border and flood-fills it away, then crops to the content.
+* Next tweaks to try: "back wall parallel to the picture plane, side walls not visible, like a
+  theatre stage seen straight on"; "no roof"; fewer, larger objects.
+
+## Recommended approach: one storey at a time
 
 Whole buildings drift. Generate **single-storey room panels** instead and assemble buildings
 in code, which also suits the procedural generator (a building = a stack of panels):

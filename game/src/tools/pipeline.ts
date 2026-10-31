@@ -65,6 +65,64 @@ function nearest(p: RGB[], c: RGB): RGB {
   return best;
 }
 
+/**
+ * Background removal for generated art: the background colour is the median of the border
+ * pixels (generators rarely give pure white), and everything connected to the border within
+ * `tol` of it becomes transparent. Light colours inside the building are untouched because
+ * the fill can't reach them. Returns the keyed image and the bounding box of what's left.
+ * A negative tolerance skips keying.
+ */
+function removeBackground(img: HTMLImageElement, tol: number): { canvas: OffscreenCanvas; box: [number, number, number, number] } {
+  const W = img.width, H = img.height;
+  const data = pixels(img, W, H);
+  const d = data.data;
+  const canvas = new OffscreenCanvas(W, H);
+  if (tol < 0) {
+    canvas.getContext('2d')!.putImageData(data, 0, 0);
+    return { canvas, box: [0, 0, W, H] };
+  }
+  const border: number[][] = [[], [], []];
+  const sample = (x: number, y: number) => {
+    const i = (y * W + x) * 4;
+    for (let c = 0; c < 3; c++) border[c].push(d[i + c]);
+  };
+  for (let x = 0; x < W; x += 4) { sample(x, 0); sample(x, H - 1); }
+  for (let y = 0; y < H; y += 4) { sample(0, y); sample(W - 1, y); }
+  const bg = border.map((v) => v.sort((a, b) => a - b)[v.length >> 1]);
+  const t2 = tol * tol;
+  const near = (p: number) => {
+    const i = p * 4;
+    const dr = d[i] - bg[0], dg = d[i + 1] - bg[1], db = d[i + 2] - bg[2];
+    return dr * dr + dg * dg + db * db <= t2;
+  };
+  const seen = new Uint8Array(W * H);
+  const stack: number[] = [];
+  const push = (p: number) => {
+    if (!seen[p] && near(p)) { seen[p] = 1; stack.push(p); }
+  };
+  for (let x = 0; x < W; x++) { push(x); push((H - 1) * W + x); }
+  for (let y = 0; y < H; y++) { push(y * W); push(y * W + W - 1); }
+  while (stack.length) {
+    const p = stack.pop()!;
+    const x = p % W;
+    if (x > 0) push(p - 1);
+    if (x < W - 1) push(p + 1);
+    if (p >= W) push(p - W);
+    if (p < W * (H - 1)) push(p + W);
+  }
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for (let p = 0; p < W * H; p++) {
+    if (seen[p]) { d[p * 4 + 3] = 0; continue; }
+    const x = p % W, y = (p / W) | 0;
+    if (x < x0) x0 = x;
+    if (x > x1) x1 = x;
+    if (y < y0) y0 = y;
+    if (y > y1) y1 = y;
+  }
+  canvas.getContext('2d')!.putImageData(data, 0, 0);
+  return { canvas, box: x1 < 0 ? [0, 0, W, H] : [x0, y0, x1 - x0 + 1, y1 - y0 + 1] };
+}
+
 let palette: RGB[] = [];
 let raw: HTMLImageElement | null = null;
 let result: HTMLCanvasElement | null = null;
@@ -76,10 +134,18 @@ async function process() {
   $('palette').innerHTML = palette.map((c) => `<span style="background:rgb(${c.join(',')})"></span>`).join('');
 
   const outW = Math.max(2, Number($<HTMLInputElement>('width').value) & ~1);
+  const tol = Number($<HTMLInputElement>('thresh').value);
+  const key = $<HTMLInputElement>('key').checked;
+  // Remove the background by flood-filling from the edges, then crop to what's left.
+  const { canvas: keyed, box } = removeBackground(raw, key ? tol : -1);
+  let [cx, cy, cw, ch] = [0, 0, raw.width, raw.height];
+  if ($<HTMLInputElement>('crop').checked) [cx, cy, cw, ch] = box;
+  const cropped = new OffscreenCanvas(cw, ch);
+  cropped.getContext('2d')!.drawImage(keyed, cx, cy, cw, ch, 0, 0, cw, ch);
   const artW = outW / 2;
-  const artH = Math.max(1, Math.round((raw.height / raw.width) * artW));
+  const artH = Math.max(1, Math.round((ch / cw) * artW));
   // Downscale in steps so detail averages out instead of aliasing.
-  let src: CanvasImageSource = raw, w = raw.width, h = raw.height;
+  let src: CanvasImageSource = cropped, w = cw, h = ch;
   while (w / 2 > artW) {
     const c = new OffscreenCanvas(Math.round(w / 2), Math.round(h / 2));
     const g = c.getContext('2d')!;
@@ -89,35 +155,8 @@ async function process() {
   }
   const small = pixels(src, artW, artH);
   const d = small.data;
-  const key = $<HTMLInputElement>('key').checked;
-  const thresh = Number($<HTMLInputElement>('thresh').value);
-  for (let i = 0; i < d.length; i += 4) {
-    if (key && d[i] >= thresh && d[i + 1] >= thresh && d[i + 2] >= thresh) {
-      d[i + 3] = 0;
-      continue;
-    }
-    d[i + 3] = 255;
-  }
-  // Remove the light halo that anti-aliased edges leave against the keyed background:
-  // pale pixels touching transparency become transparent (two passes eat a 2-pixel fringe).
-  if (key) {
-    const fringe = thresh - 60;
-    for (let pass = 0; pass < 2; pass++) {
-      const clear: number[] = [];
-      for (let y = 0; y < artH; y++) {
-        for (let x = 0; x < artW; x++) {
-          const i = (y * artW + x) * 4;
-          if (d[i + 3] === 0 || Math.min(d[i], d[i + 1], d[i + 2]) < fringe) continue;
-          const open = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => {
-            const nx = x + dx, ny = y + dy;
-            return nx < 0 || ny < 0 || nx >= artW || ny >= artH || d[(ny * artW + nx) * 4 + 3] === 0;
-          });
-          if (open) clear.push(i);
-        }
-      }
-      for (const i of clear) d[i + 3] = 0;
-    }
-  }
+  // Downscaling blends edge alpha; snap it to fully on or off (no semi-transparent pixels).
+  for (let i = 0; i < d.length; i += 4) d[i + 3] = d[i + 3] >= 160 ? 255 : 0;
   for (let i = 0; i < d.length; i += 4) {
     if (d[i + 3] === 0) continue;
     const c = nearest(palette, [d[i], d[i + 1], d[i + 2]]);
@@ -132,6 +171,7 @@ async function process() {
   og.imageSmoothingEnabled = false;
   og.drawImage(sc, 0, 0, out.width, out.height);
   result = out;
+  $('info').textContent = `Output ${outW} × ${artH * 2} game px (cropped from ${cw} × ${ch} raw px).`;
   ($('save') as HTMLButtonElement).disabled = false;
 }
 
@@ -156,7 +196,9 @@ $('save').addEventListener('click', () => {
 });
 
 // Dev convenience: ?src=/path loads an image served by the dev server.
-const src = new URLSearchParams(location.search).get('src');
+const params = new URLSearchParams(location.search);
+const src = params.get('src');
+if (params.get('width')) $<HTMLInputElement>('width').value = params.get('width')!;
 if (src) {
   load(src).then(async (img) => {
     raw = img;

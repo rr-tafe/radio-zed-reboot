@@ -14,17 +14,19 @@
 </head>
 <body>
   <h2>Radio Zed art pipeline</h2>
-  <p>Fits an AI-generated image to the original's look: shrink to the 2×2 fat-pixel grid, lock colours to the original palette, key out the background.</p>
+  <p>Fits an AI-generated image to the original's look: shrink to the 2×2 fat-pixel grid, lock colours to the original palette, remove the background (flood-filled from the edges).</p>
   <div class="row">
     <label>Image <input type="file" id="file" accept="image/*"></label>
     <label>Output width (game px) <input type="number" id="width" value="400" step="2"></label>
     <label>Palette size <input type="number" id="psize" value="64"></label>
-    <label><input type="checkbox" id="key" checked> Key out light background</label>
-    <label>Key threshold <input type="number" id="thresh" value="232"></label>
+    <label><input type="checkbox" id="crop" checked> Auto-crop to content</label>
+    <label><input type="checkbox" id="key" checked> Remove background</label>
+    <label>Background tolerance <input type="number" id="thresh" value="48"></label>
     <button id="run">Process</button>
     <button id="save" disabled>Save PNG</button>
   </div>
   <div id="palette"></div>
+  <div id="info"></div>
   <div class="row"><div>Raw<canvas id="raw"></canvas></div><div>Fitted (2× fat pixels)<canvas id="out"></canvas></div></div>
   <script type="module" src="/src/tools/pipeline.ts"></script>
 </body>
