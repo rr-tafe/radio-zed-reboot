@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Art pipeline</title>
+  <style>
+    body { background: #1b1a18; color: #e2dcd7; font: 13px system-ui, sans-serif; margin: 16px; }
+    label { margin-right: 14px; }
+    input[type=number] { width: 70px; }
+    canvas { image-rendering: pixelated; background: repeating-conic-gradient(#3a3733 0 25%, #2e2b28 0 50%) 0 0 / 16px 16px; display: block; margin: 8px 0; max-width: 100%; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+    #palette span { display: inline-block; width: 12px; height: 12px; }
+  </style>
+</head>
+<body>
+  <h2>Radio Zed art pipeline</h2>
+  <p>Fits an AI-generated image to the original's look: shrink to the 2×2 fat-pixel grid, lock colours to the original palette, key out the background.</p>
+  <div class="row">
+    <label>Image <input type="file" id="file" accept="image/*"></label>
+    <label>Output width (game px) <input type="number" id="width" value="400" step="2"></label>
+    <label>Palette size <input type="number" id="psize" value="64"></label>
+    <label><input type="checkbox" id="key" checked> Key out light background</label>
+    <label>Key threshold <input type="number" id="thresh" value="232"></label>
+    <button id="run">Process</button>
+    <button id="save" disabled>Save PNG</button>
+  </div>
+  <div id="palette"></div>
+  <div class="row"><div>Raw<canvas id="raw"></canvas></div><div>Fitted (2× fat pixels)<canvas id="out"></canvas></div></div>
+  <script type="module" src="/src/tools/pipeline.ts"></script>
+</body>
+</html>

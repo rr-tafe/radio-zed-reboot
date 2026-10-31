@@ -14,3 +14,7 @@ extracted/
 # Local secrets (API credentials). Never commit.
 .env.local
 .env*.local
+
+# Raw AI generations (processed art is committed instead).
+art/raw/
+game/art-in/
