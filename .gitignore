@@ -10,3 +10,7 @@ tools/ffdec.zip
 # with control characters in their names. The useful outputs are kept in
 # source_recovered/ and game/src/assets/.
 extracted/
+
+# Local secrets (API credentials). Never commit.
+.env.local
+.env*.local

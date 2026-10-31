@@ -1,0 +1,13 @@
+{
+  "name": "radio-zed-higgsfield",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Server-side Higgsfield API scripts (art generation). Credentials come from ../../.env.local and never reach the browser game.",
+  "scripts": {
+    "example": "node --env-file=../../.env.local index.ts"
+  },
+  "dependencies": {
+    "@higgsfield/client": "0.2.6"
+  }
+}
