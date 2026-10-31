@@ -81,6 +81,32 @@ Findings:
    backdrop floor band) would likely match the 2010 art far better than prompts alone.
 3. Expect light hand clean-up (stray text, edges) before pieces go in the game.
 
+## Reference-guided generation: Ideogram 4.0 (round 5) — current best
+
+Higgsfield's catalogue (open.higgsfield.ai) lists two image models that take an input image:
+`ideogram/v4.0` (`image_url`, `image_weight` 1–100) and `xai/grok-imagine-image-2.0`
+(`image_urls`). Using a floor cut from an original backdrop as the reference
+(`tools/art_reference.py`, e.g. Tower Block middle floor 336,272,384×80 at 4×) with
+`npm run reference` gives by far the best result:
+
+* **Flat and front-on with no perspective side walls**, striped wallpaper and brick slab like
+  the reference, crisp pixels, and exactly the furniture asked for (doorway, desk, filing
+  cabinets, barred cell, lockers, stairs). Ideogram renders text correctly ("POLICE").
+* Through the pipeline at **tolerance 12** (the background came back dark grey, close to the
+  dark interior colours; 48 leaked into the cell and lockers) the room fits cleanly.
+
+Gotchas:
+
+* Requests with `aspect_ratio: "3:1"` (and with `image_weight`) came back `failed` (refunded).
+  Prompt + `image_url` alone works and returns a square image with the room as a strip across
+  the middle; the pipeline crops it. Pass `--aspect none` to `npm run reference`.
+* The SDK's `uploadImage()` (0.2.6) fails with S3 `SignatureDoesNotMatch` because it doesn't
+  send the `upload_headers` the API returns (an `x-amz-tagging` header is signed).
+  `reference.ts` uploads with those headers itself.
+* The backdrop palette has no dark green; colours outside it (green lockers) snap to grey.
+  Add the sprite sheets to the palette sources, or raise the palette size, if that matters.
+* Size: at 384 game px wide the room is taller than an original storey; ~270 px wide fits 80.
+
 ## Recommended approach: one storey at a time
 
 Whole buildings drift. Generate **single-storey room panels** instead and assemble buildings

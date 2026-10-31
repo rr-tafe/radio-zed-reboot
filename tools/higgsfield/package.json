@@ -6,7 +6,8 @@
   "description": "Server-side Higgsfield API scripts (art generation). Credentials come from ../../.env.local and never reach the browser game.",
   "scripts": {
     "example": "node --env-file=../../.env.local index.ts",
-    "image": "node --env-file=../../.env.local image.ts"
+    "image": "node --env-file=../../.env.local image.ts",
+    "reference": "node --env-file=../../.env.local reference.ts"
   },
   "dependencies": {
     "@higgsfield/client": "0.2.6"

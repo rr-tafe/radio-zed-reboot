@@ -18,3 +18,4 @@ extracted/
 # Raw AI generations (processed art is committed instead).
 art/raw/
 game/art-in/
+art/ref/
