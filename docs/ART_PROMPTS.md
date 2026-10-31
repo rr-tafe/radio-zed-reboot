@@ -58,6 +58,29 @@ Findings:
 * Next tweaks to try: "back wall parallel to the picture plane, side walls not visible, like a
   theatre stage seen straight on"; "no roof"; fewer, larger objects.
 
+## Stage-style tests (round 4)
+
+| Test | Result |
+|---|---|
+| Police upper floor | Good long low strip with flat desks, lockers and stairs, but "theatre stage" was taken literally: red stage trim and a painted sunset backdrop. Side walls still angled like wings. |
+| Gas station shop | Flatter and wider than round 3 (fridges, counter, shelves), but still a perspective box with side walls, darker, garbled signs. |
+
+Findings:
+
+* Don't say "theatre stage": it draws a stage set. Describing the back wall as "flat and
+  parallel to the picture" did not remove the side walls.
+* Across five panel attempts Soul reliably gets the strip shape, furniture and pixel style, and
+  keeps drawing angled side walls. The back-wall area between them is usable as-is.
+
+## Where this leaves the kit (Nov 2026)
+
+1. **Crop to the back wall.** Cut each panel between its side walls in the pipeline; the flat
+   middle tiles as a room, and building ends/facades come from separate pieces.
+2. **Look for a reference-image model on Higgsfield.** Soul only takes text (or a trained Soul
+   ID). A model that accepts an image as a style or layout reference (e.g. an original
+   backdrop floor band) would likely match the 2010 art far better than prompts alone.
+3. Expect light hand clean-up (stray text, edges) before pieces go in the game.
+
 ## Recommended approach: one storey at a time
 
 Whole buildings drift. Generate **single-storey room panels** instead and assemble buildings
